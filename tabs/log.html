@@ -1,0 +1,85 @@
+<!-- tab: log -->
+<style>
+.hist-timeline {
+  position: relative;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+.hist-timeline::before {
+  content: "";
+  position: absolute;
+  top: 5px; bottom: 5px;
+  left: 5px;
+  width: 1px;
+  background: var(--border);
+}
+.hist-item {
+  position: relative;
+  padding: 2px 0 14px 22px;
+}
+.hist-item::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 7px;
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  background: var(--bg);
+  border: 2px solid var(--border);
+}
+.hist-item.claude::before { border-color: var(--accent); background: var(--accent-soft); }
+.hist-item.user::before   { border-color: var(--ok);     background: var(--ok-soft); }
+.hist-item.system::before { border-color: var(--text-muted); }
+
+.hist-head {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 2px;
+  font-size: 11px;
+}
+.hist-at {
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.hist-by {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  font-family: var(--font-mono);
+}
+.hist-by.claude { background: var(--accent-soft); color: var(--accent); }
+.hist-by.user   { background: var(--ok-soft); color: var(--ok); }
+.hist-by.system { background: var(--bg-elev-2); color: var(--text-muted); }
+.hist-summary {
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.hist-diff {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  margin-top: 2px;
+  word-break: break-all;
+}
+.hist-empty {
+  padding: 32px 0;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+</style>
+
+<section data-tab-id="{{TAB_ID}}" data-tab-type="log" id="panel-{{TAB_ID}}">
+
+  <div class="block">
+    <h2 class="block-title">变更历史</h2>
+    <div class="block-body">
+      <ul class="hist-timeline">{{HISTORY}}</ul>
+    </div>
+  </div>
+
+</section>

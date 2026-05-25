@@ -1,0 +1,156 @@
+<!-- tab: user-stories -->
+<style>
+.us-group {
+  margin-bottom: 20px;
+}
+.us-group-header {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 8px;
+}
+.us-group-name {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-family: var(--font-mono);
+}
+.us-group.must .us-group-name      { color: var(--err); }
+.us-group.should .us-group-name    { color: var(--accent); }
+.us-group.could .us-group-name     { color: var(--text); }
+.us-group.wont .us-group-name      { color: var(--text-muted); }
+.us-group-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.us-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  border-left: 2px solid var(--border);
+  transition: border-color 0.12s;
+}
+.us-card:hover { border-color: var(--text-muted); }
+.us-card.priority-must   { border-left-color: var(--err); }
+.us-card.priority-should { border-left-color: var(--accent); }
+.us-card.priority-could  { border-left-color: var(--text); }
+.us-card.priority-wont   { border-left-color: var(--text-muted); opacity: 0.7; }
+.us-card.status-done     { opacity: 0.55; }
+
+.us-head {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.us-id {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.us-estimate {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 1px 6px;
+  background: var(--bg-elev-2);
+  border-radius: 4px;
+  color: var(--text-soft);
+  font-weight: 600;
+}
+
+.us-narrative {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text);
+  letter-spacing: -0.005em;
+  margin: 0 0 8px;
+}
+.us-narrative .us-role,
+.us-narrative .us-want,
+.us-narrative .us-rationale {
+  font-weight: 600;
+  color: var(--accent);
+  font-style: normal;
+}
+.us-narrative .us-kw {
+  color: var(--text-muted);
+  font-weight: 400;
+  font-style: normal;
+  margin: 0 1px;
+}
+
+.us-acceptance {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-soft);
+}
+.us-ac-title {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+  font-family: var(--font-mono);
+}
+.us-ac-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.us-ac-list li {
+  position: relative;
+  padding: 3px 0 3px 22px;
+  line-height: 1.5;
+  font-size: 13px;
+  color: var(--text-soft);
+}
+.us-ac-list li::before {
+  content: "";
+  position: absolute;
+  left: 2px; top: 6px;
+  width: 12px; height: 12px;
+  border: 1.5px solid var(--text-muted);
+  border-radius: 3px;
+  background: var(--bg);
+}
+.us-ac-list li.checked::before {
+  background: var(--ok);
+  border-color: var(--ok);
+}
+.us-ac-list li.checked::after {
+  content: "";
+  position: absolute;
+  left: 5px; top: 8px;
+  width: 6px; height: 3px;
+  border-left: 1.5px solid #fff;
+  border-bottom: 1.5px solid #fff;
+  transform: rotate(-45deg);
+}
+.us-ac-list li.checked { text-decoration: line-through; color: var(--text-muted); }
+
+.us-notes {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+}
+
+.us-empty {
+  padding: 32px 0;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+</style>
+
+<section data-tab-id="{{TAB_ID}}" data-tab-type="user-stories" id="panel-{{TAB_ID}}">
+
+  <div class="block">
+    <h2 class="block-title">用户故事</h2>
+    <div class="block-body">{{USER_STORIES}}</div>
+  </div>
+
+</section>

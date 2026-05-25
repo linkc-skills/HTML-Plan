@@ -1,0 +1,205 @@
+<!-- tab: confirm -->
+<style>
+.q-list { margin: 0; padding: 0; }
+.q-item {
+  margin-bottom: 18px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.q-item:last-child { border-bottom: none; padding-bottom: 0; }
+.q-question {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+  letter-spacing: -0.005em;
+}
+.q-question .req { color: var(--err); margin-left: 4px; font-weight: 400; }
+.q-context {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  line-height: 1.55;
+}
+.q-input { margin-top: 8px; }
+.q-input input[type="text"],
+.q-input textarea,
+.q-input select {
+  width: 100%;
+  padding: 8px 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+.q-input input[type="text"]:focus,
+.q-input textarea:focus,
+.q-input select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.q-input textarea { min-height: 80px; resize: vertical; }
+.q-input label.opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  margin: 3px 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.12s, border-color 0.12s;
+}
+.q-input label.opt:hover {
+  background: var(--bg-elev);
+  border-color: var(--text-muted);
+}
+.q-input label.opt input {
+  margin: 0;
+  accent-color: var(--accent);
+}
+.q-answered {
+  background: var(--ok-soft);
+  border: 1px solid transparent;
+  border-left: 2px solid var(--ok);
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  margin-top: 6px;
+}
+.q-answered .label {
+  color: var(--ok);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 2px;
+  font-family: var(--font-mono);
+}
+.q-answered .value {
+  font-size: 13px;
+  color: var(--text);
+}
+.q-answered .answered-actions {
+  margin-top: 6px;
+}
+.q-answered .answered-actions button { font-size: 11px; padding: 2px 6px; }
+.confirm-empty {
+  padding: 32px 0;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.confirm-actions {
+  display: flex; gap: 10px; align-items: center;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-soft);
+}
+.confirm-actions .muted { font-size: 12px; }
+</style>
+
+<section data-tab-id="{{TAB_ID}}" data-tab-type="confirm" id="panel-{{TAB_ID}}">
+
+  <div class="block">
+    <h2 class="block-title">需要你确认的问题</h2>
+    <div class="block-body">
+      <form id="confirm-form-{{TAB_ID}}" data-confirm-form>
+        <div class="q-list">{{OPEN_QUESTIONS}}</div>
+        <div class="confirm-actions">
+          <button type="submit" class="primary">保存答案</button>
+          <span class="muted">点保存后 Claude 下一轮就能读到</span>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</section>
+
+<script>
+window.__TAB_INITS__ = window.__TAB_INITS__ || [];
+window.__TAB_INITS__.push(function initConfirm_{{TAB_ID}}() {
+  const form = document.getElementById('confirm-form-{{TAB_ID}}');
+  if (!form) return;
+
+  // Re-answer button: convert answered q-item back to editable input
+  form.addEventListener('click', (e) => {
+    if (!e.target.matches('[data-act="re-answer"]')) return;
+    const qid = e.target.dataset.qid;
+    const item = form.querySelector(`[data-qid="${qid}"]`);
+    if (!item) return;
+    const qtype = item.dataset.qtype;
+    const answered = item.querySelector('.q-answered');
+    if (!answered) return;
+
+    // Render the input control matching the type
+    let inputHtml = '';
+    if (qtype === 'multiline') {
+      inputHtml = '<textarea placeholder="新答案…"></textarea>';
+    } else if (qtype === 'select' || qtype === 'radio' || qtype === 'checkbox') {
+      // For radio/checkbox/select we need the options; user can also just type — keep simple text input
+      inputHtml = '<input type="text" placeholder="新答案（用 Tab 2 重新选项更精确）">';
+    } else {
+      inputHtml = '<input type="text" placeholder="新答案…">';
+    }
+    answered.outerHTML = `<div class="q-input">${inputHtml}
+      <div class="answered-actions" style="margin-top:6px;">
+        <span class="muted" style="font-size:11px;">改完后点底部"保存答案"统一提交草稿</span>
+      </div></div>`;
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const answers = {};
+    form.querySelectorAll('[data-qid]').forEach(node => {
+      const qid = node.dataset.qid;
+      const type = node.dataset.qtype;
+      if (type === 'radio') {
+        const checked = node.querySelector('input[type=radio]:checked');
+        if (checked) answers[qid] = checked.value;
+      } else if (type === 'checkbox') {
+        answers[qid] = Array.from(node.querySelectorAll('input[type=checkbox]:checked')).map(i => i.value);
+      } else if (type === 'select') {
+        const sel = node.querySelector('select');
+        if (sel && sel.value) answers[qid] = sel.value;
+      } else if (type === 'multiline') {
+        const ta = node.querySelector('textarea');
+        if (ta && ta.value.trim()) answers[qid] = ta.value;
+      } else {
+        const inp = node.querySelector('input[type=text]');
+        if (inp && inp.value.trim()) answers[qid] = inp.value;
+      }
+    });
+    if (Object.keys(answers).length === 0) {
+      window.toast('请至少填一个答案', 'err');
+      return;
+    }
+    // Each answer becomes a separate draft action
+    try {
+      for (const [qid, ans] of Object.entries(answers)) {
+        const r = await fetch(window.__SERVER__ + '/draft', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'form_answer',
+            payload: { question_id: qid, answer: ans }
+          })
+        });
+        if (!r.ok) {
+          const err = await r.text();
+          window.toast('✗ 保存草稿失败: ' + err, 'err');
+          return;
+        }
+      }
+      window.toast('✓ 已存 ' + Object.keys(answers).length + ' 条草稿 · 顶部提交后 AI 处理');
+      if (window.__refreshDraftCount) window.__refreshDraftCount();
+    } catch (e) {
+      window.toast('✗ sidecar 未运行', 'err');
+    }
+  });
+});
+</script>

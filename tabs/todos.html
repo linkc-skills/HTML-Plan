@@ -1,0 +1,365 @@
+<!-- tab: todos -->
+<style>
+/* Summary bar */
+.todos-summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.todos-stat {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 10px 12px;
+}
+.todos-stat .label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-family: var(--font-mono);
+  margin-bottom: 4px;
+}
+.todos-stat .value {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.todos-stat.done .value      { color: var(--ok); }
+.todos-stat.pending .value   { color: var(--accent); }
+.todos-stat.skipped .value   { color: var(--text-muted); }
+.todos-stat.queue .value     { color: var(--warn); }
+.todos-progress {
+  margin: 0 0 24px;
+  display: flex; align-items: center; gap: 10px;
+}
+.todos-progress-bar {
+  flex: 1; height: 4px;
+  background: var(--bg-elev-2);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.todos-progress-bar > div {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+.todos-progress-label {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  letter-spacing: -0.01em;
+}
+
+/* Groups */
+.todos-group { margin-bottom: 24px; }
+.todos-group-header {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 8px;
+}
+.todos-group-name {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.todos-group.pending .todos-group-name { color: var(--accent); }
+.todos-group.done .todos-group-name    { color: var(--ok); }
+.todos-group.skipped .todos-group-name { color: var(--text-muted); }
+.todos-group-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Cards */
+.todo-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  border-left: 2px solid var(--border);
+  transition: border-color 0.12s;
+}
+.todo-card:hover { border-color: var(--text-muted); }
+.todo-card.status-pending { border-left-color: var(--accent); }
+.todo-card.status-done    { border-left-color: var(--ok); opacity: 0.7; }
+.todo-card.status-done .todo-title { text-decoration: line-through; color: var(--text-muted); }
+.todo-card.status-skipped { border-left-color: var(--text-muted); opacity: 0.55; }
+.todo-card.status-skipped .todo-title { text-decoration: line-through; color: var(--text-muted); }
+
+.todo-head {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+.todo-id {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.todo-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.005em;
+  flex: 1;
+  min-width: 0;
+}
+.todo-priority {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 1px 6px;
+  background: var(--bg-elev-2);
+  border-radius: 4px;
+  color: var(--text-soft);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.todo-priority.p0 { background: var(--err-soft); color: var(--err); }
+.todo-priority.p1 { background: var(--warn-soft); color: var(--warn); }
+.todo-priority.p2 { background: var(--accent-soft); color: var(--accent); }
+.todo-priority.p3 { background: var(--bg-elev-2); color: var(--text-muted); }
+.todo-category {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 1px 6px;
+  background: var(--bg-elev-2);
+  border-radius: 4px;
+  color: var(--text-muted);
+}
+.todo-updated {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+.todo-notes {
+  font-size: 13px;
+  color: var(--text-soft);
+  line-height: 1.6;
+  margin: 4px 0 8px;
+  white-space: pre-wrap;
+}
+.todo-skipped-reason {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+  background: var(--bg-elev);
+  border-left: 2px solid var(--warn);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  margin: 6px 0;
+}
+
+/* Comments */
+.todo-comments {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-soft);
+}
+.todo-comments-head {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+  font-family: var(--font-mono);
+}
+.comment {
+  background: var(--bg-elev);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+.comment-head {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.comment-at { font-family: var(--font-mono); }
+.comment-status {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  font-family: var(--font-mono);
+}
+.comment-status.pending { background: var(--warn-soft); color: var(--warn); }
+.comment-status.done    { background: var(--ok-soft); color: var(--ok); }
+.comment-body {
+  color: var(--text);
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+.comment-body[contenteditable="true"] {
+  background: var(--bg);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  outline: none;
+}
+.comment-actions {
+  display: flex; gap: 4px;
+  margin-top: 4px;
+}
+.comment-actions button { font-size: 11px; padding: 2px 6px; }
+.comment-actions button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.comment-ai-response {
+  font-size: 11px;
+  color: var(--ok);
+  margin-top: 4px;
+  padding: 4px 8px;
+  background: var(--ok-soft);
+  border-radius: var(--radius-sm);
+  font-style: italic;
+}
+
+/* Add-comment row */
+.todo-add-comment {
+  margin-top: 8px;
+  display: flex; gap: 6px;
+}
+.todo-add-comment textarea {
+  flex: 1;
+  min-height: 32px;
+  max-height: 120px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  resize: vertical;
+}
+.todo-add-comment textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.todo-add-comment button { white-space: nowrap; }
+
+.todos-empty {
+  padding: 40px 0;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+</style>
+
+<section data-tab-id="{{TAB_ID}}" data-tab-type="todos" id="panel-{{TAB_ID}}">
+
+  <div class="block">
+    <h2 class="block-title">概览</h2>
+    <div class="block-body">
+      <div class="todos-summary">
+        <div class="todos-stat pending"><div class="label">进行中</div><div class="value">{{COUNT_PENDING}}</div></div>
+        <div class="todos-stat done"><div class="label">已完成</div><div class="value">{{COUNT_DONE}}</div></div>
+        <div class="todos-stat skipped"><div class="label">已忽略</div><div class="value">{{COUNT_SKIPPED}}</div></div>
+        <div class="todos-stat queue"><div class="label">⏳ 待 AI 响应评论</div><div class="value">{{COUNT_PENDING_COMMENTS}}</div></div>
+      </div>
+      <div class="todos-progress">
+        <div class="todos-progress-bar"><div style="width:{{COMPLETION_PERCENT}}%"></div></div>
+        <span class="todos-progress-label">完成率 {{COMPLETION_PERCENT}}%</span>
+      </div>
+    </div>
+  </div>
+
+  {{TODOS_BODY}}
+
+</section>
+
+<script>
+window.__TAB_INITS__ = window.__TAB_INITS__ || [];
+window.__TAB_INITS__.push(function initTodos_{{TAB_ID}}() {
+  // Add comment
+  document.querySelectorAll('[data-add-comment-for]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const todoId = btn.dataset.addCommentFor;
+      const ta = btn.parentElement.querySelector('textarea');
+      const body = ta.value.trim();
+      if (!body) { window.toast('评论内容不能为空', 'err'); return; }
+      try {
+        const r = await fetch(window.__SERVER__ + '/draft', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'todo_comment_create',
+                                 payload: { todo_id: todoId, body } })
+        });
+        if (r.ok) {
+          ta.value = '';
+          window.toast('✓ 已存草稿 · 顶部提交后 AI 处理');
+          if (window.__refreshDraftCount) window.__refreshDraftCount();
+        } else {
+          window.toast('✗ 保存草稿失败', 'err');
+        }
+      } catch (e) { window.toast('✗ sidecar 未运行', 'err'); }
+    });
+  });
+
+  // Edit comment (delegated)
+  document.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-comment-act]');
+    if (!btn) return;
+    const cmt = btn.closest('.comment');
+    if (!cmt) return;
+    const todoId = cmt.dataset.todoId;
+    const commentId = cmt.dataset.commentId;
+    const act = btn.dataset.commentAct;
+    const bodyEl = cmt.querySelector('.comment-body');
+
+    if (act === 'edit') {
+      if (bodyEl.getAttribute('contenteditable') === 'true') {
+        bodyEl.setAttribute('contenteditable', 'false');
+        btn.textContent = '编辑';
+        try {
+          const r = await fetch(window.__SERVER__ + '/draft', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'todo_comment_edit',
+              payload: { todo_id: todoId, comment_id: commentId, body: bodyEl.textContent }
+            })
+          });
+          if (r.ok) {
+            window.toast('✓ 已存编辑草稿 · 顶部提交后 AI 处理');
+            if (window.__refreshDraftCount) window.__refreshDraftCount();
+          } else { window.toast('✗ 保存草稿失败', 'err'); }
+        } catch (e) { window.toast('✗ sidecar 未运行', 'err'); }
+      } else {
+        bodyEl.setAttribute('contenteditable', 'true');
+        bodyEl.focus();
+        btn.textContent = '保存';
+      }
+    } else if (act === 'delete') {
+      if (!confirm('确认删除这条评论？删除会进入草稿，提交后生效。')) return;
+      try {
+        const r = await fetch(window.__SERVER__ + '/draft', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'todo_comment_delete',
+            payload: { todo_id: todoId, comment_id: commentId }
+          })
+        });
+        if (r.ok) {
+          cmt.style.opacity = '0.3';
+          window.toast('✓ 已存删除草稿 · 顶部提交后生效');
+          if (window.__refreshDraftCount) window.__refreshDraftCount();
+        } else { window.toast('✗ 保存草稿失败', 'err'); }
+      } catch (e) { window.toast('✗ sidecar 未运行', 'err'); }
+    }
+  });
+});
+</script>

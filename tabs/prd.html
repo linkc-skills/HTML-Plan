@@ -1,0 +1,189 @@
+<!-- tab: prd -->
+<style>
+.prd-problem {
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--text);
+  letter-spacing: -0.015em;
+  margin: 0;
+}
+.prd-audience {
+  display: inline-block;
+  padding: 3px 10px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: var(--radius);
+  font-size: 12px;
+  font-weight: 500;
+  font-family: var(--font-mono);
+}
+.prd-goals, .prd-non-goals {
+  list-style: none; padding: 0; margin: 0;
+}
+.prd-goals li, .prd-non-goals li {
+  padding: 6px 0 6px 24px;
+  position: relative;
+  line-height: 1.55;
+  font-size: 14px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.prd-goals li:last-child, .prd-non-goals li:last-child { border-bottom: none; }
+.prd-goals li::before {
+  content: "✓";
+  position: absolute; left: 4px; top: 6px;
+  color: var(--ok);
+  font-weight: 700;
+  font-size: 12px;
+}
+.prd-non-goals li::before {
+  content: "✕";
+  position: absolute; left: 4px; top: 6px;
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 12px;
+}
+.prd-non-goals li { color: var(--text-muted); }
+.prd-scope {
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+/* Success metrics as data-cards */
+.prd-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+.prd-metric {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 12px 14px;
+  transition: border-color 0.12s;
+}
+.prd-metric:hover { border-color: var(--text-muted); }
+.prd-metric .metric-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+  letter-spacing: -0.005em;
+}
+.prd-metric .metric-numbers {
+  display: flex; gap: 8px; align-items: baseline;
+}
+.prd-metric .metric-target {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+.prd-metric .metric-baseline {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: -0.01em;
+}
+.prd-metric .metric-baseline::before { content: ""; }
+.prd-metric .metric-baseline + .metric-target::before {
+  content: "→";
+  color: var(--text-muted);
+  margin-right: 4px;
+  font-weight: 400;
+}
+.prd-constraints {
+  list-style: none; padding: 0; margin: 0;
+}
+.prd-constraints li {
+  padding: 4px 0 4px 18px;
+  position: relative;
+  font-size: 13px;
+  color: var(--text-soft);
+}
+.prd-constraints li::before {
+  content: "";
+  position: absolute; left: 4px; top: 11px;
+  width: 6px; height: 1px;
+  background: var(--warn);
+}
+.prd-timeline {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text);
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--accent);
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  line-height: 1.55;
+}
+.prd-empty {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+</style>
+
+<section data-tab-id="{{TAB_ID}}" data-tab-type="prd" id="panel-{{TAB_ID}}">
+
+  <div class="block">
+    <h2 class="block-title">问题</h2>
+    <div class="block-body">
+      <div class="prd-problem field" data-ref-id="prd-problem" data-field="text">{{PRD_PROBLEM}}</div>
+    </div>
+  </div>
+
+  <div class="block">
+    <h2 class="block-title">目标用户</h2>
+    <div class="block-body">
+      <span class="prd-audience field" data-ref-id="prd-audience" data-field="text">{{PRD_AUDIENCE}}</span>
+    </div>
+  </div>
+
+  <div class="block">
+    <h2 class="block-title">产品目标</h2>
+    <div class="block-body">
+      <ul class="prd-goals">{{PRD_GOALS}}</ul>
+    </div>
+  </div>
+
+  <div class="block">
+    <h2 class="block-title">非目标（明确不做）</h2>
+    <div class="block-body">
+      <ul class="prd-non-goals">{{PRD_NON_GOALS}}</ul>
+    </div>
+  </div>
+
+  <div class="block">
+    <h2 class="block-title">范围</h2>
+    <div class="block-body">
+      <div class="prd-scope field" data-ref-id="prd-scope" data-field="text">{{PRD_SCOPE}}</div>
+    </div>
+  </div>
+
+  <div class="block">
+    <h2 class="block-title">成功指标</h2>
+    <div class="block-body">
+      <div class="prd-metrics">{{PRD_METRICS}}</div>
+    </div>
+  </div>
+
+  <div class="block">
+    <h2 class="block-title">约束</h2>
+    <div class="block-body">
+      <ul class="prd-constraints">{{PRD_CONSTRAINTS}}</ul>
+    </div>
+  </div>
+
+  <div class="block">
+    <h2 class="block-title">时间线</h2>
+    <div class="block-body">
+      <div class="prd-timeline field" data-ref-id="prd-timeline" data-field="text">{{PRD_TIMELINE}}</div>
+    </div>
+  </div>
+
+</section>

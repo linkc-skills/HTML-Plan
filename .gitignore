@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyc
+*.egg-info/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Runtime task data (created per-task in user's $CWD, never in skill dir)
+.html-plan/
+
+# Temp / backup files
+*.tmp
+*.bak
+.state.json.bak
+.server.pid
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo

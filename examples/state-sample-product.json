@@ -1,0 +1,364 @@
+{
+  "task": "示例：为 AI Creative Lab 做一个「灵感采访」小工具",
+  "slug": "2026-05-23-sample-inspiration-tool",
+  "created_at": "2026-05-23T06:30:00+08:00",
+  "updated_at": "2026-05-23T07:00:00+08:00",
+  "version": 5,
+  "server": { "port": 55501, "url": "http://localhost:55501/plan.html", "pid": 0 },
+
+  "tabs": [
+    { "id": "plan",         "type": "plan",         "label": "全局规划",   "pinned": true, "order": 1 },
+    { "id": "prd",          "type": "prd",          "label": "PRD",        "order": 2 },
+    { "id": "us",           "type": "user-stories", "label": "用户故事",   "order": 3 },
+    { "id": "uf",           "type": "user-flow",    "label": "用户旅程",   "order": 4 },
+    { "id": "todos",        "type": "todos",        "label": "待办清单",   "order": 5 },
+    { "id": "confirm",      "type": "confirm",      "label": "确认表单",   "order": 6 },
+    { "id": "log",          "type": "log",          "label": "变更历史",   "pinned": true, "order": 99 }
+  ],
+
+  "plan": {
+    "goal": "做一个让用户能 10 分钟整理一次「灵感采访」的轻量工具",
+    "context": "用户每天和 ChatGPT / Gemini 做大量「被采访」式思考复盘，但散落各处。需要一个把这些对话沉淀到个人知识库的工作面。",
+    "key_points": [
+      "本地优先，不依赖任何云服务",
+      "和个人 wiki / journal 编译流程对接",
+      "支持语音输入起步"
+    ],
+    "steps": [
+      { "id": "s1", "title": "把 PRD 和用户故事写清楚", "status": "in_progress", "notes": "正在用 html-plan 自己做这件事。", "diagram": "" },
+      { "id": "s2", "title": "做一个 CLI 原型", "status": "todo", "notes": "MVP 不要 UI。" },
+      { "id": "s3", "title": "和现有 ingest 链路对接", "status": "todo", "notes": "" }
+    ]
+  },
+
+  "prd": {
+    "problem": "我每天在 ChatGPT / Gemini 里做大量「被采访」式的思考复盘，但这些对话沉淀不下来——既不会自动进个人知识库，也很难在未来检索。",
+    "audience": "用户（重度自我对话用户）+ 未来可能扩展到所有内容创作者",
+    "goals": [
+      "10 分钟以内能完成一次「灵感采访」的录制和归档",
+      "采访内容自动进入个人知识库的 ingest 流",
+      "结构化输出：主题、关键观点、未解问题"
+    ],
+    "non_goals": [
+      "不做团队协作 / 分享功能（个人工具）",
+      "不做语音转写的自研模型（用现成 API）",
+      "不做 UI 美化 / 主题切换（MVP 命令行就够了）"
+    ],
+    "scope": "MVP 包含：录音 → 转写 → 让 LLM 当采访人 → 结构化输出 → 落到 ./inbox/。不含：批量历史导入、跨设备同步、多人共享。",
+    "success_metrics": [
+      { "metric": "每周采访次数", "baseline": "0", "target": "≥ 5 次" },
+      { "metric": "采访 → 归档完成时间", "baseline": "目前 ~30 分钟", "target": "≤ 10 分钟" },
+      { "metric": "归档信息被引用率（30 天内）", "baseline": "—", "target": "≥ 40%" }
+    ],
+    "constraints": [
+      "本地优先，无云依赖",
+      "复用现有 skill 体系",
+      "MVP 必须能在 1 周内做出来"
+    ],
+    "timeline": "Week 1: CLI 原型 + 转写跑通  ·  Week 2: 与个人知识库对接  ·  Week 3: 试用 + 迭代"
+  },
+
+  "user_stories": [
+    {
+      "id": "us1",
+      "as": "用户",
+      "want": "在终端直接说 /interview <topic> 就开始一次采访",
+      "so_that": "不用切上下文，10 秒内开始记录",
+      "priority": "must",
+      "estimate": "S",
+      "status": "ready",
+      "acceptance": [
+        { "text": "命令存在且能正确启动", "checked": true },
+        { "text": "支持中断（Ctrl-C）保留已有内容", "checked": false },
+        { "text": "topic 参数可选，缺省提示 LLM 自由聊" }
+      ],
+      "notes": "考虑用 linkc-compile 触发"
+    },
+    {
+      "id": "us2",
+      "as": "用户",
+      "want": "LLM 像采访人一样主动追问",
+      "so_that": "挖出我自己没意识到的观点",
+      "priority": "must",
+      "estimate": "M",
+      "status": "ready",
+      "acceptance": [
+        "LLM 不能只重复我的话",
+        "至少有一个 follow-up 问题",
+        "结束前问「还想补充什么」"
+      ]
+    },
+    {
+      "id": "us3",
+      "as": "用户",
+      "want": "采访结束自动归档到 ./inbox/conversations/",
+      "so_that": "下次 ingest 能自动编译到 wiki",
+      "priority": "must",
+      "estimate": "S",
+      "status": "ready",
+      "acceptance": [
+        "文件名 YYYY-MM-DD-HHMM-<topic>.md",
+        "frontmatter 含 source: interview, topic, duration",
+        "正文格式：原始对话 + 结构化摘要"
+      ]
+    },
+    {
+      "id": "us4",
+      "as": "用户",
+      "want": "采访可以语音输入",
+      "so_that": "走路 / 开车也能用",
+      "priority": "should",
+      "estimate": "L",
+      "status": "deferred",
+      "acceptance": ["Whisper API 接入", "支持中文识别"],
+      "notes": "Phase 2 再做，MVP 用打字即可"
+    },
+    {
+      "id": "us5",
+      "as": "用户",
+      "want": "回顾历史采访",
+      "so_that": "找到之前某个话题的思考过程",
+      "priority": "could",
+      "estimate": "M",
+      "status": "deferred",
+      "acceptance": ["按 topic 检索", "按时间检索"]
+    },
+    {
+      "id": "us6",
+      "as": "用户",
+      "want": "把采访发给团队成员",
+      "so_that": "异步协作",
+      "priority": "wont",
+      "estimate": "L",
+      "status": "deferred",
+      "acceptance": [],
+      "notes": "不在产品定位里"
+    }
+  ],
+
+  "user_flows": [
+    {
+      "id": "uf1",
+      "name": "完整一次灵感采访（MVP）",
+      "actor": "用户",
+      "entry": "想到一个值得展开的想法",
+      "exit": "归档完成，回到工作",
+      "steps": [
+        {
+          "id": "uf1-s1",
+          "section": "启动",
+          "action": "敲 /interview 命令",
+          "touchpoint": "Claude Code 终端",
+          "emotion": "good",
+          "duration_sec": 5,
+          "drop_risk": "low",
+          "notes": "命令应该极容易记"
+        },
+        {
+          "id": "uf1-s2",
+          "section": "启动",
+          "action": "输入或不输入 topic",
+          "touchpoint": "终端 prompt",
+          "emotion": "neutral",
+          "duration_sec": 10,
+          "drop_risk": "low"
+        },
+        {
+          "id": "uf1-s3",
+          "section": "对话",
+          "action": "LLM 提第一个开放问题",
+          "touchpoint": "终端对话流",
+          "emotion": "good",
+          "duration_sec": 5,
+          "drop_risk": "mid",
+          "notes": "如果第一个问题不够好，用户会失去兴趣"
+        },
+        {
+          "id": "uf1-s4",
+          "section": "对话",
+          "action": "用户回答（打字）",
+          "touchpoint": "终端输入",
+          "emotion": "neutral",
+          "duration_sec": 90,
+          "drop_risk": "mid",
+          "notes": "打字累 → 留着 Phase 2 加语音"
+        },
+        {
+          "id": "uf1-s5",
+          "section": "对话",
+          "action": "LLM 追问 / 重述 / 挑战",
+          "touchpoint": "终端对话流",
+          "emotion": "great",
+          "duration_sec": 5,
+          "drop_risk": "low",
+          "notes": "这是采访价值的核心"
+        },
+        {
+          "id": "uf1-s6",
+          "section": "结束",
+          "action": "用户敲 /end 或自然结束",
+          "touchpoint": "终端命令",
+          "emotion": "good",
+          "duration_sec": 3,
+          "drop_risk": "low"
+        },
+        {
+          "id": "uf1-s7",
+          "section": "归档",
+          "action": "LLM 自动生成结构化摘要",
+          "touchpoint": "终端输出",
+          "emotion": "good",
+          "duration_sec": 20,
+          "drop_risk": "low"
+        },
+        {
+          "id": "uf1-s8",
+          "section": "归档",
+          "action": "落到 ./inbox/conversations/",
+          "touchpoint": "文件系统",
+          "emotion": "great",
+          "duration_sec": 2,
+          "drop_risk": "low",
+          "notes": "用户看到「✅ 已归档」即闭环"
+        }
+      ],
+      "diagram": ""
+    }
+  ],
+
+  "open_questions": [
+    {
+      "id": "q1",
+      "question": "Phase 1 包不包含语音输入？",
+      "type": "radio",
+      "options": ["不包含（推荐 · MVP 优先）", "包含（用 Whisper API）", "做一个 toggle，默认关"],
+      "answer": null,
+      "context": "影响 us4 的优先级",
+      "required": true
+    },
+    {
+      "id": "q2",
+      "question": "采访结束后的归档目录？",
+      "type": "text",
+      "options": [],
+      "answer": null,
+      "context": "默认 ./inbox/conversations/，但可能要单独的 ./inbox/interviews/",
+      "required": false
+    }
+  ],
+
+  "history": [
+    { "at": "2026-05-23T06:30:00+08:00", "by": "claude", "summary": "初始化 plan + PRD 骨架", "diff_summary": "+task +plan +prd" },
+    { "at": "2026-05-23T06:35:00+08:00", "by": "claude", "summary": "起草 6 条 user stories", "diff_summary": "+us1..us6" },
+    { "at": "2026-05-23T06:50:00+08:00", "by": "claude", "summary": "画出 MVP user flow", "diff_summary": "+uf1 (8 steps)" },
+    { "at": "2026-05-23T06:55:00+08:00", "by": "claude", "summary": "提出 2 个待确认问题", "diff_summary": "+q1 +q2" },
+    { "at": "2026-05-23T07:00:00+08:00", "by": "user", "summary": "回填了 us1 第一条验收标准（已完成）", "diff_summary": "us1.acceptance[0].checked=true" }
+  ],
+
+  "annotations": [],
+
+  "todos": [
+    {
+      "id": "td1",
+      "title": "把 sidecar 启动失败的错误打到 toast",
+      "status": "pending",
+      "priority": "p0",
+      "category": "bug",
+      "notes": "用户最近反馈两次，要修。",
+      "created_at": "2026-05-23T08:00:00+08:00",
+      "updated_at": "2026-05-23T08:00:00+08:00",
+      "created_by": "claude",
+      "comments": [
+        {
+          "id": "c1",
+          "at": "2026-05-23T09:15:00+08:00",
+          "by": "user",
+          "body": "改成 P1 吧，目前出现频率不高",
+          "processed": false,
+          "ai_response": null,
+          "ai_responded_at": null
+        }
+      ]
+    },
+    {
+      "id": "td2",
+      "title": "重构 render.py 支持 tabs[] 模块化",
+      "status": "done",
+      "priority": "p0",
+      "category": "refactor",
+      "notes": "已完成于 v2。state.tabs 数组 + 按 type 找模板。",
+      "created_at": "2026-05-22T22:00:00+08:00",
+      "updated_at": "2026-05-22T23:30:00+08:00",
+      "created_by": "claude",
+      "comments": [
+        {
+          "id": "c1",
+          "at": "2026-05-23T07:00:00+08:00",
+          "by": "user",
+          "body": "已经做完了别忘标 done",
+          "processed": true,
+          "ai_response": "已标记完成 ✓",
+          "ai_responded_at": "2026-05-23T07:05:00+08:00"
+        }
+      ]
+    },
+    {
+      "id": "td3",
+      "title": "为 plan.html 加权限管理",
+      "status": "skipped",
+      "priority": "p3",
+      "category": "feature",
+      "notes": "考虑过加 sidecar 认证。",
+      "skipped_reason": "只接 localhost，不需要认证。等真有多人共享需求再加。",
+      "created_at": "2026-05-23T10:00:00+08:00",
+      "updated_at": "2026-05-23T10:30:00+08:00",
+      "created_by": "claude",
+      "comments": []
+    },
+    {
+      "id": "td4",
+      "title": "实施 v4 inbox 工作流",
+      "status": "pending",
+      "priority": "p0",
+      "category": "feature",
+      "notes": "正在做中。Phase 1-3 完成，Phase 4 进行中。",
+      "created_at": "2026-05-24T15:00:00+08:00",
+      "updated_at": "2026-05-24T17:00:00+08:00",
+      "created_by": "claude",
+      "comments": []
+    },
+    {
+      "id": "td5",
+      "title": "把 mermaid 升级到 v11",
+      "status": "pending",
+      "priority": "p2",
+      "category": "refactor",
+      "notes": "目前用 v11 cdn，但要测试边缘 case。",
+      "created_at": "2026-05-23T11:00:00+08:00",
+      "updated_at": "2026-05-23T11:00:00+08:00",
+      "created_by": "claude",
+      "comments": []
+    }
+  ],
+
+  "inbox": [
+    {
+      "id": "in1",
+      "at": "2026-05-23T09:15:00+08:00",
+      "type": "todo_comment",
+      "target": { "tab_id": "todos", "todo_id": "td1", "comment_id": "c1" },
+      "body": "改成 P1 吧，目前出现频率不高",
+      "context": {
+        "todo_title": "把 sidecar 启动失败的错误打到 toast",
+        "todo_status": "pending",
+        "todo_priority": "p0",
+        "todo_category": "bug"
+      },
+      "processed": false,
+      "ai_response": null,
+      "ai_responded_at": null
+    }
+  ],
+
+  "draft": []
+}

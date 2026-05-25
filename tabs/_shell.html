@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{TASK_TITLE}}</title>
+<style>
+/* ===========================================================
+   html-plan · Vercel / Geist Modern
+   Pure white + neutral grays + electric blue accent.
+   Sans-serif everywhere. High information density.
+   ----------------------------------------------------------- */
+
+/* --- Design tokens --- */
+:root {
+  --bg:           #FFFFFF;
+  --bg-elev:      #FAFAFA;
+  --bg-elev-2:    #F4F4F5;
+  --text:         #0A0A0A;
+  --text-soft:    #404040;
+  --text-muted:   #737373;
+  --border:       #E5E5E5;
+  --border-soft:  #F0F0F0;
+  --accent:       #0070F3;
+  --accent-soft:  rgba(0, 112, 243, 0.08);
+  --accent-hover: #0061D5;
+  --ok:           #0FB57E;
+  --ok-soft:      rgba(15, 181, 126, 0.10);
+  --warn:         #F5A623;
+  --warn-soft:    rgba(245, 166, 35, 0.10);
+  --err:          #E5484D;
+  --err-soft:     rgba(229, 72, 77, 0.10);
+  --mark:         rgba(245, 166, 35, 0.20);
+  --mark-border:  #F5A623;
+
+  --radius-sm:    4px;
+  --radius:       6px;
+  --radius-lg:    8px;
+  --shadow-sm:    0 1px 2px rgba(0,0,0,0.04);
+  --shadow:       0 2px 4px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.04);
+  --shadow-pop:   0 4px 12px rgba(0,0,0,0.06), 0 12px 32px rgba(0,0,0,0.08);
+
+  --font-sans:   "Inter", "Geist", -apple-system, BlinkMacSystemFont,
+                 "PingFang SC", "Noto Sans SC", "Helvetica Neue", Arial, sans-serif;
+  --font-mono:   "Geist Mono", "JetBrains Mono", ui-monospace, SFMono-Regular,
+                 Menlo, monospace;
+  /* Keep --font-serif alias pointing to sans so old refs degrade gracefully */
+  --font-serif:  var(--font-sans);
+
+  --content-w: 900px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:           #0A0A0A;
+    --bg-elev:      #111111;
+    --bg-elev-2:    #1A1A1A;
+    --text:         #FAFAFA;
+    --text-soft:    #A1A1A1;
+    --text-muted:   #737373;
+    --border:       #292929;
+    --border-soft:  #1F1F1F;
+    --accent:       #3291FF;
+    --accent-soft:  rgba(50, 145, 255, 0.12);
+    --accent-hover: #52A8FF;
+    --ok:           #46D58B;
+    --ok-soft:      rgba(70, 213, 139, 0.12);
+    --warn:         #F7B955;
+    --warn-soft:    rgba(247, 185, 85, 0.12);
+    --err:          #FF6369;
+    --err-soft:     rgba(255, 99, 105, 0.12);
+    --mark:         rgba(247, 185, 85, 0.22);
+    --mark-border:  #F7B955;
+    --shadow-sm:    0 1px 2px rgba(0,0,0,0.30);
+    --shadow:       0 2px 4px rgba(0,0,0,0.30), 0 4px 16px rgba(0,0,0,0.30);
+    --shadow-pop:   0 4px 12px rgba(0,0,0,0.40), 0 12px 32px rgba(0,0,0,0.50);
+  }
+}
+
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "cv11", "ss01";
+}
+
+/* --- Top sticky header --- */
+.topbar {
+  position: sticky; top: 0; z-index: 50;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: saturate(180%) blur(10px);
+  -webkit-backdrop-filter: saturate(180%) blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+@media (prefers-color-scheme: dark) {
+  .topbar { background: rgba(10, 10, 10, 0.85); }
+}
+.topbar-inner {
+  max-width: var(--content-w);
+  margin: 0 auto;
+  padding: 16px 32px 0;
+}
+.topbar h1 {
+  font-family: var(--font-sans);
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0 0 4px;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  color: var(--text);
+}
+.topbar .meta {
+  color: var(--text-muted);
+  font-size: 12px;
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  letter-spacing: -0.005em;
+}
+.topbar .meta .sep { opacity: 0.5; }
+.topbar .meta .slug { font-family: var(--font-mono); font-size: 11px; }
+
+/* --- Tab navigation (Vercel underline) --- */
+.tabs {
+  max-width: var(--content-w);
+  margin: 14px auto 0;
+  padding: 0 32px;
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+}
+.tabs input[type="radio"] { display: none; }
+.tabs label {
+  padding: 10px 14px;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  user-select: none;
+  transition: color 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+  white-space: nowrap;
+  border-top-left-radius: var(--radius-sm);
+  border-top-right-radius: var(--radius-sm);
+}
+.tabs label:hover {
+  color: var(--text);
+  background: var(--bg-elev);
+}
+.tabs label .tab-badge {
+  display: inline-block; margin-left: 6px; padding: 0 6px;
+  background: var(--accent-soft); color: var(--accent);
+  border-radius: 999px; font-size: 10px; font-weight: 600;
+  vertical-align: middle;
+  font-family: var(--font-mono);
+}
+
+/* Dynamic tab-checked rules injected by render.py */
+{{DYNAMIC_TAB_CSS}}
+
+/* --- Main wrap --- */
+.wrap {
+  max-width: var(--content-w);
+  margin: 0 auto;
+  padding: 24px 32px 96px;
+}
+.tab-panels > section { display: none; }
+.tab-panels > section.active-fallback { display: block; }
+
+/* --- Reusable: section block --- */
+.block {
+  margin: 20px 0;
+}
+.block + .block {
+  margin-top: 28px;
+}
+.block-title {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 10px;
+}
+.block-body { color: var(--text); }
+.block-body p { margin: 0 0 10px; }
+
+/* --- Reusable: pills / chips --- */
+.pill {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  vertical-align: middle;
+  font-family: var(--font-mono);
+  border: 1px solid transparent;
+}
+.pill.todo        { background: var(--bg-elev-2); color: var(--text-muted); border-color: var(--border-soft); }
+.pill.in_progress { background: var(--accent-soft); color: var(--accent); }
+.pill.done        { background: var(--ok-soft);    color: var(--ok); }
+.pill.blocked     { background: var(--err-soft);   color: var(--err); }
+
+/* --- Reusable: muted text --- */
+.muted { color: var(--text-muted); }
+.kbd, code.inline {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+/* --- Buttons --- */
+button.primary, button.secondary, button.ghost {
+  font: inherit; cursor: pointer;
+  padding: 7px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-weight: 500;
+  font-size: 13px;
+  letter-spacing: -0.005em;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+button.primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+button.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+button.secondary:hover { background: var(--bg-elev); border-color: var(--text-muted); }
+button.ghost {
+  background: transparent;
+  border: none;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+button.ghost:hover { color: var(--text); background: var(--bg-elev); border-radius: var(--radius-sm); }
+
+/* --- Annotations: <mark> in content --- */
+mark.annot {
+  background: var(--mark);
+  border-bottom: 1.5px solid var(--mark-border);
+  padding: 0 1px;
+  cursor: pointer;
+  border-radius: 2px;
+  color: inherit;
+}
+mark.annot:hover { filter: brightness(1.05); }
+mark.annot.resolved { opacity: 0.5; }
+
+/* --- Annotation popover (selection-triggered) --- */
+#annot-popover {
+  position: absolute; display: none;
+  background: var(--text);
+  color: var(--bg);
+  border: 1px solid var(--text);
+  border-radius: var(--radius);
+  padding: 6px 12px;
+  box-shadow: var(--shadow-pop);
+  z-index: 100;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+}
+#annot-popover:hover {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+#annot-panel,
+#annot-inline-panel {
+  position: absolute; display: none;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-pop);
+  padding: 14px;
+  z-index: 200;
+  width: 340px;
+}
+#annot-inline-panel .annot-inline-quote {
+  font-size: 12px;
+  color: var(--text-muted);
+  border-left: 2px solid var(--mark-border);
+  padding-left: 10px;
+  margin-bottom: 8px;
+  max-height: 48px;
+  overflow: hidden;
+}
+#annot-inline-panel .annot-inline-body {
+  background: var(--bg-elev);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text);
+  margin-bottom: 10px;
+  white-space: pre-wrap;
+  min-height: 40px;
+}
+#annot-inline-panel .annot-inline-body[contenteditable="true"] {
+  background: var(--bg);
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+#annot-inline-panel .annot-inline-status {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-family: var(--font-mono);
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+#annot-inline-panel .annot-inline-status.pending { background: var(--warn-soft); color: var(--warn); }
+#annot-inline-panel .annot-inline-status.processed { background: var(--ok-soft); color: var(--ok); }
+#annot-inline-panel .annot-inline-actions {
+  display: flex; gap: 8px; justify-content: flex-end;
+}
+mark.annot {
+  /* make it clickable feel */
+  transition: background 0.12s;
+}
+mark.annot:hover {
+  background: var(--accent-soft);
+  filter: none;
+}
+#annot-panel textarea {
+  width: 100%;
+  min-height: 72px;
+  padding: 8px 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  resize: vertical;
+}
+#annot-panel textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+#annot-panel .quoted {
+  font-size: 12px;
+  color: var(--text-muted);
+  border-left: 2px solid var(--mark-border);
+  padding-left: 10px;
+  margin-bottom: 10px;
+  max-height: 48px;
+  overflow: hidden;
+}
+#annot-panel .annot-actions {
+  display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px;
+}
+
+/* --- Toast --- */
+.toast {
+  position: fixed; top: 16px; right: 16px;
+  padding: 9px 14px;
+  border-radius: var(--radius);
+  font-size: 13px; font-weight: 500;
+  box-shadow: var(--shadow-pop);
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: opacity 0.2s, transform 0.2s;
+  pointer-events: none;
+  z-index: 1000;
+  background: var(--text);
+  border: none;
+  color: var(--bg);
+  letter-spacing: -0.005em;
+}
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast.ok  { background: var(--ok); color: #fff; }
+.toast.err { background: var(--err); color: #fff; }
+
+/* --- Mermaid diagram container --- */
+.diagram {
+  margin: 12px 0;
+  padding: 16px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow-x: auto;
+}
+.diagram .caption {
+  display: block;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 8px;
+}
+
+/* --- Selection style --- */
+::selection { background: var(--accent-soft); color: inherit; }
+
+/* --- Card primitive --- */
+.card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  transition: border-color 0.12s;
+}
+.card:hover { border-color: var(--text-muted); }
+
+/* --- Action bar (submit + inbox status) --- */
+.actionbar {
+  max-width: var(--content-w);
+  margin: 0 auto;
+  padding: 10px 32px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border-bottom: 1px solid var(--border-soft);
+  font-size: 13px;
+}
+.actionbar .draft-status,
+.actionbar .inbox-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  letter-spacing: -0.005em;
+}
+.actionbar .draft-status strong,
+.actionbar .inbox-status strong {
+  font-family: var(--font-mono);
+  color: var(--text);
+  font-weight: 600;
+}
+.actionbar .draft-status.has-drafts strong { color: var(--accent); }
+.actionbar .inbox-status.has-pending strong { color: var(--warn); }
+.actionbar .spacer { flex: 1; }
+.actionbar #commit-btn {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+.actionbar #commit-btn[disabled] {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.actionbar #commit-btn.processing {
+  background: var(--warn);
+  border-color: var(--warn);
+  cursor: wait;
+}
+
+/* --- Commit result overlay --- */
+#commit-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: none;
+  align-items: flex-start;
+  justify-content: center;
+  z-index: 500;
+  padding: 80px 20px 20px;
+}
+#commit-overlay.show { display: flex; }
+.commit-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-pop);
+  padding: 20px 22px;
+  width: 100%;
+  max-width: 480px;
+  position: relative;
+}
+.commit-card .close {
+  position: absolute;
+  top: 12px; right: 12px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 18px;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  line-height: 1;
+}
+.commit-card .close:hover { color: var(--text); }
+.commit-card h3 {
+  margin: 0 0 12px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+.commit-card .commit-list {
+  margin: 0 0 14px;
+  padding: 0;
+  list-style: none;
+  background: var(--bg-elev);
+  border-radius: var(--radius);
+  border: 1px solid var(--border-soft);
+}
+.commit-card .commit-list li {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-soft);
+  font-size: 13px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.commit-card .commit-list li:last-child { border-bottom: none; }
+.commit-card .commit-id {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 600;
+}
+.commit-card .commit-hint {
+  font-size: 13px;
+  color: var(--text-soft);
+  margin: 0 0 10px;
+}
+.commit-card .commit-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.commit-card #copy-prompt-btn {
+  flex: 1;
+  justify-content: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.commit-card #copy-prompt-btn.copied {
+  background: var(--ok);
+  border-color: var(--ok);
+}
+
+/* --- Per-tab styles injected below --- */
+{{TAB_CSS}}
+</style>
+</head>
+<body>
+
+{{TAB_INPUTS}}
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <h1>{{TASK_TITLE}}</h1>
+    <div class="meta">
+      <span class="slug">{{SLUG}}</span>
+      <span class="sep">·</span>
+      <span>v{{VERSION}}</span>
+      <span class="sep">·</span>
+      <span>更新于 {{UPDATED_AT}}</span>
+      <span class="sep">·</span>
+      <span id="server-status">⏳ 连接中…</span>
+    </div>
+  </div>
+  <nav class="tabs">
+    {{TAB_LABELS}}
+  </nav>
+  <div class="actionbar">
+    <span class="draft-status" id="draft-status">
+      📝 <strong id="draft-count">0</strong> 条草稿待提交
+    </span>
+    <span class="inbox-status" id="inbox-status">
+      📬 <strong id="inbox-count">0</strong> 条待 AI 响应
+    </span>
+    <span class="spacer"></span>
+    <button class="primary" id="commit-btn" disabled>📤 本轮提交</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="tab-panels">
+    {{TAB_SECTIONS}}
+  </div>
+</div>
+
+<!-- commit result overlay -->
+<div id="commit-overlay">
+  <div class="commit-card">
+    <button class="close" aria-label="关闭">×</button>
+    <h3>✅ 已提交 <span id="commit-count">0</span> 条变更</h3>
+    <ul class="commit-list" id="commit-list"></ul>
+    <p class="commit-hint">回到 Claude Code 让他响应：</p>
+    <div class="commit-actions">
+      <button class="primary" id="copy-prompt-btn">
+        <span>📋</span> <span id="copy-prompt-text">复制提示语</span>
+      </button>
+      <button class="secondary" id="dismiss-btn">稍后再说</button>
+    </div>
+  </div>
+</div>
+
+<!-- annotation UI -->
+<div id="annot-popover">💬 加批注</div>
+
+<!-- new-annotation panel (selection → save) -->
+<div id="annot-panel">
+  <div class="quoted" id="annot-quote"></div>
+  <textarea id="annot-body" placeholder="写下你的批注…"></textarea>
+  <div class="annot-actions">
+    <button class="ghost" id="annot-cancel">取消</button>
+    <button class="primary" id="annot-save">保存批注</button>
+  </div>
+</div>
+
+<!-- inline-annotation panel (click mark → edit/delete) -->
+<div id="annot-inline-panel">
+  <div class="annot-inline-quote" id="annot-inline-quote"></div>
+  <span class="annot-inline-status" id="annot-inline-status">⏳ 等待 AI 响应</span>
+  <div class="annot-inline-body" id="annot-inline-body" contenteditable="false"></div>
+  <div class="annot-inline-actions">
+    <button class="ghost" id="annot-inline-edit">编辑</button>
+    <button class="ghost" id="annot-inline-delete">删除</button>
+    <button class="ghost" id="annot-inline-close">关闭</button>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+{{MERMAID_JS}}
+</script>
+<script>
+window.__STATE__ = {{STATE_JSON}};
+window.__SERVER__ = "{{SERVER_URL}}";
+
+document.addEventListener('DOMContentLoaded', () => {
+  // mermaid init
+  if (window.mermaid) {
+    const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    window.mermaid.initialize({
+      startOnLoad: true,
+      theme: isDark ? 'dark' : 'default',
+      themeVariables: {
+        fontFamily: getComputedStyle(document.body).getPropertyValue('--font-sans'),
+      },
+      securityLevel: 'loose',
+    });
+  }
+
+  // Sidecar health probe
+  fetch(window.__SERVER__ + '/healthz').then(r => {
+    document.getElementById('server-status').textContent = r.ok ? '✅ 已连接' : '⚠️ sidecar 异常';
+  }).catch(() => {
+    document.getElementById('server-status').textContent = '⚠️ sidecar 未运行';
+  });
+
+  initAnnotations();
+  initInlineAnnotEdit();
+  initActionbar();
+
+  // Per-tab init hooks (each tab registers via window.__TAB_INITS__.push(fn))
+  if (window.__TAB_INITS__) {
+    window.__TAB_INITS__.forEach(fn => { try { fn(); } catch (e) { console.error(e); } });
+  }
+});
+
+window.__TAB_INITS__ = [];
+
+function toast(msg, kind) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast ' + (kind || 'ok') + ' show';
+  setTimeout(() => { el.className = 'toast'; }, 2400);
+}
+window.toast = toast;
+
+// ----- Annotations: selection → popover → panel → save -----
+let currentSelection = null;
+
+function initAnnotations() {
+  const pop = document.getElementById('annot-popover');
+  const panel = document.getElementById('annot-panel');
+  const body = document.getElementById('annot-body');
+  const quote = document.getElementById('annot-quote');
+
+  document.addEventListener('mouseup', (e) => {
+    if (panel.style.display === 'block') return;
+    // If user clicked an existing annotation mark, don't show the "add" popover
+    if (e.target.closest('mark.annot')) {
+      pop.style.display = 'none';
+      return;
+    }
+    if (window.__suppressAnnotPopover) {
+      window.__suppressAnnotPopover = false;
+      pop.style.display = 'none';
+      return;
+    }
+    setTimeout(() => {
+      const sel = window.getSelection();
+      const text = sel.toString().trim();
+      if (!text || text.length < 2) { pop.style.display = 'none'; return; }
+      const anchorNode = sel.anchorNode;
+      const container = findAnnotContainer(anchorNode);
+      if (!container) { pop.style.display = 'none'; return; }
+      const range = sel.getRangeAt(0);
+      const rect = range.getBoundingClientRect();
+      currentSelection = {
+        text,
+        ref_id: container.dataset.refId,
+        field: container.dataset.field,
+        ...computeOffsets(container, range)
+      };
+      pop.style.display = 'block';
+      pop.style.top = (window.scrollY + rect.bottom + 6) + 'px';
+      pop.style.left = (window.scrollX + rect.left) + 'px';
+    }, 10);
+  });
+
+  pop.addEventListener('click', () => {
+    if (!currentSelection) return;
+    pop.style.display = 'none';
+    panel.style.display = 'block';
+    panel.style.top = pop.style.top;
+    panel.style.left = pop.style.left;
+    quote.textContent = '"' + truncate(currentSelection.text, 80) + '"';
+    body.value = '';
+    body.focus();
+  });
+
+  document.getElementById('annot-cancel').addEventListener('click', () => {
+    panel.style.display = 'none';
+    currentSelection = null;
+  });
+
+  document.getElementById('annot-save').addEventListener('click', async () => {
+    if (!currentSelection) return;
+    const text = body.value.trim();
+    if (!text) { toast('❌ 批注内容不能为空', 'err'); return; }
+    try {
+      const r = await fetch(window.__SERVER__ + '/draft', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'annotation_create',
+          payload: {
+            scope: scopeOf(currentSelection.ref_id),
+            ref_id: currentSelection.ref_id,
+            field: currentSelection.field,
+            anchor_text: currentSelection.text,
+            start_offset: currentSelection.start,
+            end_offset: currentSelection.end,
+            body: text
+          }
+        })
+      });
+      if (r.ok) {
+        panel.style.display = 'none';
+        toast('✓ 已存草稿 · 顶部提交后 AI 处理');
+        if (window.__refreshDraftCount) window.__refreshDraftCount();
+      } else {
+        const err = await r.text();
+        toast('❌ 保存失败: ' + err, 'err');
+      }
+    } catch (e) {
+      toast('❌ sidecar 未运行', 'err');
+    } finally {
+      currentSelection = null;
+    }
+  });
+
+  document.addEventListener('click', (e) => {
+    if (e.target === pop) return;
+    if (pop.style.display === 'block' && !pop.contains(e.target)) pop.style.display = 'none';
+  });
+
+  // Item-level annotation actions (delegated) — route via /draft pool
+  document.addEventListener('click', async (e) => {
+    const item = e.target.closest('.annot-item');
+    if (!item) return;
+    const id = item.dataset.annotId;
+    if (e.target.matches('[data-act="edit"]')) {
+      const bodyEl = item.querySelector('.annot-body');
+      if (bodyEl.getAttribute('contenteditable') === 'true') {
+        bodyEl.setAttribute('contenteditable', 'false');
+        e.target.textContent = '编辑';
+        try {
+          const r = await fetch(window.__SERVER__ + '/draft', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'annotation_edit',
+              payload: { annot_id: id, body: bodyEl.textContent }
+            })
+          });
+          if (r.ok) {
+            toast('✓ 已存编辑草稿 · 顶部提交后生效');
+            if (window.__refreshDraftCount) window.__refreshDraftCount();
+          } else { toast('✗ 保存草稿失败', 'err'); }
+        } catch (e2) { toast('❌ sidecar 未运行', 'err'); }
+      } else {
+        bodyEl.setAttribute('contenteditable', 'true');
+        bodyEl.focus();
+        e.target.textContent = '保存';
+      }
+    } else if (e.target.matches('[data-act="delete"]')) {
+      if (!confirm('确认删除这条批注？删除会进入草稿，提交后生效。')) return;
+      try {
+        const r = await fetch(window.__SERVER__ + '/draft', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'annotation_delete',
+            payload: { annot_id: id }
+          })
+        });
+        if (r.ok) {
+          item.style.opacity = '0.3';
+          toast('✓ 已存删除草稿 · 顶部提交后生效');
+          if (window.__refreshDraftCount) window.__refreshDraftCount();
+        } else { toast('✗ 保存草稿失败', 'err'); }
+      } catch (e2) { toast('❌ sidecar 未运行', 'err'); }
+    } else if (e.target.matches('[data-act="resolve"]')) {
+      // Resolve 仍然直接走 /annotate（AI 处理批注的语义动作，不算用户提交）
+      try {
+        const r = await fetch(window.__SERVER__ + '/annotate/' + id + '/resolve', { method: 'POST' });
+        if (r.ok) { item.classList.add('resolved'); toast('✅ 已标记为解决'); }
+        else toast('❌ 操作失败', 'err');
+      } catch (e2) { toast('❌ sidecar 未运行', 'err'); }
+    }
+  });
+}
+
+function findAnnotContainer(node) {
+  while (node) {
+    if (node.nodeType === 1 && node.dataset && node.dataset.refId) return node;
+    node = node.parentNode;
+  }
+  return null;
+}
+
+function computeOffsets(container, range) {
+  const selText = range.toString();
+  let start = 0;
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+  let acc = 0;
+  while (walker.nextNode()) {
+    const node = walker.currentNode;
+    if (node === range.startContainer) {
+      start = acc + range.startOffset;
+      break;
+    }
+    acc += node.nodeValue.length;
+  }
+  return { start, end: start + selText.length };
+}
+
+function scopeOf(ref_id) {
+  if (ref_id === 'goal' || ref_id === 'context') return ref_id;
+  if (ref_id.startsWith('kp-')) return 'key_point';
+  return 'step';
+}
+
+function truncate(s, n) { return s.length > n ? s.slice(0, n) + '…' : s; }
+
+// ----- Inline annotation editor (click mark → panel) -----
+
+function initInlineAnnotEdit() {
+  const panel = document.getElementById('annot-inline-panel');
+  const quoteEl = document.getElementById('annot-inline-quote');
+  const bodyEl = document.getElementById('annot-inline-body');
+  const statusEl = document.getElementById('annot-inline-status');
+  const editBtn = document.getElementById('annot-inline-edit');
+  const delBtn = document.getElementById('annot-inline-delete');
+  const closeBtn = document.getElementById('annot-inline-close');
+
+  let currentMark = null;
+  let currentAnnotId = null;
+
+  // Suppress new-annot popover when the user just clicked a mark
+  document.addEventListener('mousedown', (e) => {
+    if (e.target.closest('mark.annot')) {
+      window.__suppressAnnotPopover = true;
+    }
+  }, true);
+
+  document.addEventListener('click', (e) => {
+    const mark = e.target.closest('mark.annot');
+    if (!mark) return;
+    e.stopPropagation();
+    // Clear text selection so we don't trigger the "add annotation" popover
+    window.getSelection().removeAllRanges();
+
+    const annotId = mark.dataset.annotId;
+    if (!annotId) return;
+
+    const annot = (window.__STATE__?.annotations || []).find(a => a.id === annotId);
+    if (!annot) {
+      window.toast('找不到批注 ' + annotId + '（提交后刷新页面）', 'err');
+      return;
+    }
+
+    currentMark = mark;
+    currentAnnotId = annotId;
+
+    quoteEl.textContent = '"' + truncate(annot.target?.anchor_text || mark.textContent, 100) + '"';
+    bodyEl.textContent = annot.body || '';
+    bodyEl.setAttribute('contenteditable', 'false');
+    editBtn.textContent = '编辑';
+
+    // Status: check inbox for whether this annotation has been processed
+    const inboxItem = (window.__STATE__?.inbox || [])
+      .find(x => x.type === 'annotation' && x.target?.annot_id === annotId);
+    if (inboxItem && inboxItem.processed) {
+      statusEl.textContent = '✓ AI 已处理';
+      statusEl.className = 'annot-inline-status processed';
+      editBtn.disabled = true;
+      editBtn.title = 'AI 已响应，新想法请加新批注';
+    } else {
+      statusEl.textContent = '⏳ 等待 AI 响应';
+      statusEl.className = 'annot-inline-status pending';
+      editBtn.disabled = false;
+      editBtn.title = '';
+    }
+
+    // Position panel near the mark
+    const rect = mark.getBoundingClientRect();
+    panel.style.display = 'block';
+    panel.style.top = (window.scrollY + rect.bottom + 6) + 'px';
+    panel.style.left = (window.scrollX + rect.left) + 'px';
+    // Clamp to viewport right edge
+    const panelRight = rect.left + 340;
+    if (panelRight > window.innerWidth - 16) {
+      panel.style.left = (window.scrollX + window.innerWidth - 356) + 'px';
+    }
+  });
+
+  // Click outside → close
+  document.addEventListener('click', (e) => {
+    if (panel.style.display !== 'block') return;
+    if (panel.contains(e.target)) return;
+    if (e.target.closest('mark.annot')) return;
+    panel.style.display = 'none';
+    currentMark = null;
+    currentAnnotId = null;
+  });
+
+  closeBtn.addEventListener('click', () => {
+    panel.style.display = 'none';
+  });
+
+  editBtn.addEventListener('click', async () => {
+    if (!currentAnnotId) return;
+    if (bodyEl.getAttribute('contenteditable') === 'true') {
+      // Save edit
+      bodyEl.setAttribute('contenteditable', 'false');
+      editBtn.textContent = '编辑';
+      try {
+        const r = await fetch(window.__SERVER__ + '/draft', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'annotation_edit',
+            payload: { annot_id: currentAnnotId, body: bodyEl.textContent }
+          })
+        });
+        if (r.ok) {
+          window.toast('✓ 已存编辑草稿 · 顶部提交后生效');
+          if (window.__refreshDraftCount) window.__refreshDraftCount();
+        } else {
+          window.toast('✗ 保存草稿失败', 'err');
+        }
+      } catch (e) { window.toast('✗ sidecar 未运行', 'err'); }
+    } else {
+      bodyEl.setAttribute('contenteditable', 'true');
+      bodyEl.focus();
+      editBtn.textContent = '保存';
+    }
+  });
+
+  delBtn.addEventListener('click', async () => {
+    if (!currentAnnotId) return;
+    if (!confirm('确认删除这条批注？删除会进入草稿，提交后生效。')) return;
+    try {
+      const r = await fetch(window.__SERVER__ + '/draft', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'annotation_delete',
+          payload: { annot_id: currentAnnotId }
+        })
+      });
+      if (r.ok) {
+        if (currentMark) currentMark.style.opacity = '0.3';
+        panel.style.display = 'none';
+        window.toast('✓ 已存删除草稿 · 顶部提交后生效');
+        if (window.__refreshDraftCount) window.__refreshDraftCount();
+      } else {
+        window.toast('✗ 保存草稿失败', 'err');
+      }
+    } catch (e) { window.toast('✗ sidecar 未运行', 'err'); }
+  });
+}
+
+// ----- Actionbar: draft / inbox counts + commit + copy prompt -----
+
+function initActionbar() {
+  const commitBtn = document.getElementById('commit-btn');
+  if (commitBtn) {
+    commitBtn.addEventListener('click', commitDrafts);
+  }
+  const closeBtn = document.querySelector('#commit-overlay .close');
+  if (closeBtn) closeBtn.addEventListener('click', hideCommitOverlay);
+  const dismissBtn = document.getElementById('dismiss-btn');
+  if (dismissBtn) dismissBtn.addEventListener('click', hideCommitOverlay);
+  const copyBtn = document.getElementById('copy-prompt-btn');
+  if (copyBtn) copyBtn.addEventListener('click', copyPromptToClipboard);
+
+  // Initial fetch + poll every 5s
+  refreshStatusCounts();
+  setInterval(refreshStatusCounts, 5000);
+
+  // Expose for tab JS to trigger immediate refresh after a draft action
+  window.__refreshDraftCount = refreshStatusCounts;
+}
+
+async function refreshStatusCounts() {
+  try {
+    const r = await fetch(window.__SERVER__ + '/state');
+    if (!r.ok) return;
+    const s = await r.json();
+    const draftCount = (s.draft || []).length;
+    const inboxPending = (s.inbox || []).filter(x => !x.processed).length;
+
+    const draftEl = document.getElementById('draft-count');
+    const draftBadge = document.getElementById('draft-status');
+    if (draftEl) draftEl.textContent = draftCount;
+    if (draftBadge) draftBadge.classList.toggle('has-drafts', draftCount > 0);
+
+    const inboxEl = document.getElementById('inbox-count');
+    const inboxBadge = document.getElementById('inbox-status');
+    if (inboxEl) inboxEl.textContent = inboxPending;
+    if (inboxBadge) inboxBadge.classList.toggle('has-pending', inboxPending > 0);
+
+    const commitBtn = document.getElementById('commit-btn');
+    if (commitBtn) {
+      commitBtn.disabled = draftCount === 0;
+      commitBtn.textContent = draftCount > 0
+        ? `📤 本轮提交 (${draftCount})`
+        : '📤 本轮提交';
+    }
+
+    // Stash latest state for the copy-prompt step
+    window.__STATE__ = s;
+  } catch (e) {
+    // sidecar offline — silently fail
+  }
+}
+
+async function commitDrafts() {
+  const btn = document.getElementById('commit-btn');
+  btn.disabled = true;
+  btn.classList.add('processing');
+  btn.textContent = '⏳ 提交中…';
+  try {
+    const r = await fetch(window.__SERVER__ + '/draft/commit', { method: 'POST' });
+    const data = await r.json();
+    if (!r.ok || !data.ok) {
+      window.toast('✗ 提交失败：' + (data.error || r.statusText), 'err');
+      return;
+    }
+    showCommitOverlay(data);
+    refreshStatusCounts();
+  } catch (e) {
+    window.toast('✗ sidecar 未运行', 'err');
+  } finally {
+    btn.classList.remove('processing');
+  }
+}
+
+function showCommitOverlay(commitData) {
+  const overlay = document.getElementById('commit-overlay');
+  const countEl = document.getElementById('commit-count');
+  const listEl = document.getElementById('commit-list');
+  const inboxIds = commitData.inbox_ids || [];
+
+  countEl.textContent = inboxIds.length;
+
+  // Look up each inbox item to show its type + body preview
+  const state = window.__STATE__ || {};
+  const inboxItems = (state.inbox || []).filter(x => inboxIds.includes(x.id));
+  listEl.innerHTML = inboxItems.map(item => {
+    const typeLabel = {
+      annotation: '批注',
+      todo_comment: '评论',
+      form_answer: '回答'
+    }[item.type] || item.type;
+    const targetLabel =
+      item.target.annot_id ? `批注 ${item.target.annot_id}` :
+      item.target.todo_id ? `td ${item.target.todo_id}` :
+      item.target.question_id ? `问题 ${item.target.question_id}` :
+      '';
+    const preview = (item.body || '').slice(0, 50) + (item.body.length > 50 ? '…' : '');
+    return `<li>
+      <span class="commit-id">${item.id}</span>
+      <span class="muted">${typeLabel} ${targetLabel}</span>
+      <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${preview}</span>
+    </li>`;
+  }).join('');
+
+  // Cache the inbox_ids + task_dir for copy-prompt
+  window.__LAST_COMMIT__ = {
+    inbox_ids: inboxIds,
+    slug: state.slug,
+    task_dir: state.task_dir,
+  };
+
+  overlay.classList.add('show');
+}
+
+function hideCommitOverlay() {
+  document.getElementById('commit-overlay').classList.remove('show');
+}
+
+async function copyPromptToClipboard() {
+  const cmt = window.__LAST_COMMIT__ || {};
+  const slug = cmt.slug || 'unknown';
+  const taskDir = cmt.task_dir || '(任务目录未知)';
+  const ids = cmt.inbox_ids || [];
+  const prompt =
+    `处理 html-plan 的 inbox · 任务 ${slug}\n` +
+    `提交了 ${ids.length} 条：${ids.join(', ')}\n` +
+    `状态目录：${taskDir}`;
+
+  const btn = document.getElementById('copy-prompt-btn');
+  const txt = document.getElementById('copy-prompt-text');
+  try {
+    await navigator.clipboard.writeText(prompt);
+    btn.classList.add('copied');
+    txt.textContent = '已复制 · 切到 Claude Code 粘贴';
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      txt.textContent = '复制提示语';
+    }, 2200);
+  } catch (e) {
+    // Fallback: show textarea with selected content
+    const ta = document.createElement('textarea');
+    ta.value = prompt;
+    ta.style.cssText = 'width:100%;height:80px;margin-top:8px;font-family:var(--font-mono);font-size:12px;padding:6px;border:1px solid var(--border);border-radius:4px;';
+    btn.parentElement.parentElement.appendChild(ta);
+    ta.select();
+    window.toast('剪贴板不可用，请手动 Cmd+C 复制', 'err');
+  }
+}
+</script>
+
+{{TAB_JS}}
+
+</body>
+</html>

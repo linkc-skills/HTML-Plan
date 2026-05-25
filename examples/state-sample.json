@@ -1,0 +1,117 @@
+{
+  "task": "示例：把电子书 X 处理成播客",
+  "slug": "2026-05-22-sample-podcast",
+  "created_at": "2026-05-22T22:00:00+08:00",
+  "updated_at": "2026-05-22T22:30:00+08:00",
+  "version": 3,
+  "server": {
+    "port": 55501,
+    "url": "http://localhost:55501/plan.html",
+    "pid": 0
+  },
+  "tabs": [
+    { "id": "plan",    "type": "plan",    "label": "全局规划", "pinned": true, "order": 1 },
+    { "id": "confirm", "type": "confirm", "label": "确认表单", "order": 2 },
+    { "id": "log",     "type": "log",     "label": "变更历史", "pinned": true, "order": 99 }
+  ],
+  "plan": {
+    "goal": "把《思考，快与慢》拆章生成中文播客单集，每集一个核心概念",
+    "context": "之前用 ebook-to-podcast skill 跑出过粗剪版本，但 8 章合一集太长。本轮目标是 1 章 1 集，每集 15 分钟左右，先做 3 集试播。",
+    "key_points": [
+      "音频语种统一为中文，不论书源语言",
+      "每集开头 30 秒做钩子（开放式问题）",
+      "片尾推荐下一集",
+      "试播 3 集决定要不要继续做完全书"
+    ],
+    "steps": [
+      {
+        "id": "s1",
+        "title": "拆章 + 选 3 章试播",
+        "status": "done",
+        "notes": "用 ebook-to-podcast 拆出 36 章，过滤掉 frontmatter/backmatter 剩 28 章。选了第 1、9、17 章。",
+        "diagram": "flow:\n  start -> \"拆章\"\n  \"拆章\" -> \"过滤 frontmatter\"\n  \"过滤 frontmatter\" -> \"选 3 章\"\n  \"选 3 章\" -> done"
+      },
+      {
+        "id": "s2",
+        "title": "为每章生成中文摘要 + 钩子开头",
+        "status": "in_progress",
+        "notes": "需要用户确认摘要风格（讲故事 vs. 直接讲概念）后才能继续。",
+        "diagram": ""
+      },
+      {
+        "id": "s3",
+        "title": "NotebookLM 生成播客音频",
+        "status": "todo",
+        "notes": "拿到摘要后用 nlm_generate，lang=zh。",
+        "diagram": "state:\n  [*] -> draft\n  draft -> reviewed : 用户确认\n  reviewed -> generated : NotebookLM\n  generated -> [*]"
+      }
+    ]
+  },
+  "open_questions": [
+    {
+      "id": "q1",
+      "question": "摘要的叙事风格？",
+      "type": "radio",
+      "options": ["讲故事（情景化）", "直接讲概念（更紧凑）", "混合"],
+      "answer": null,
+      "context": "决定 step s2 的 prompt 风格",
+      "required": true
+    },
+    {
+      "id": "q2",
+      "question": "钩子的具体格式？",
+      "type": "multiline",
+      "options": [],
+      "answer": null,
+      "context": "30 秒内的开场白",
+      "required": false
+    },
+    {
+      "id": "q3",
+      "question": "试播 3 集发布到哪里？",
+      "type": "checkbox",
+      "options": ["小红书", "公众号", "私人 podcast feed", "暂不发"],
+      "answer": null,
+      "context": "决定声音模板和长度",
+      "required": false
+    }
+  ],
+  "history": [
+    {
+      "at": "2026-05-22T22:00:00+08:00",
+      "by": "claude",
+      "summary": "初始化 plan，提出 3 个待确认问题",
+      "diff_summary": "+goal +context +4 key_points +3 steps +3 questions"
+    },
+    {
+      "at": "2026-05-22T22:15:00+08:00",
+      "by": "claude",
+      "summary": "完成 step s1：拆章 + 选了 3 章试播",
+      "diff_summary": "s1: todo → done, +notes"
+    },
+    {
+      "at": "2026-05-22T22:25:00+08:00",
+      "by": "user",
+      "summary": "添加了批注 a1",
+      "diff_summary": "on s2.notes: \"摘要风格\""
+    }
+  ],
+  "annotations": [
+    {
+      "id": "a1",
+      "target": {
+        "scope": "step",
+        "ref_id": "s2",
+        "field": "notes",
+        "anchor_text": "讲故事 vs. 直接讲概念",
+        "start_offset": 9,
+        "end_offset": 21
+      },
+      "body": "倾向讲故事，但不是每集都要——根据章节内容本身决定。让 Claude 看每章后自己挑。",
+      "by": "user",
+      "at": "2026-05-22T22:25:00+08:00",
+      "resolved": false,
+      "replies": []
+    }
+  ]
+}

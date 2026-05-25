@@ -1,0 +1,149 @@
+<!-- tab: user-flow -->
+<style>
+.uf-flow {
+  margin-bottom: 20px;
+  padding: 16px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+.uf-flow + .uf-flow { margin-top: 20px; }
+
+.uf-head {
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.uf-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.01em;
+  margin: 0 0 4px;
+}
+.uf-meta {
+  display: flex; gap: 12px; flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.uf-meta .uf-actor {
+  color: var(--accent);
+  font-weight: 500;
+}
+.uf-meta .uf-entry::before { content: "进入 · "; opacity: 0.7; }
+.uf-meta .uf-exit::before  { content: "退出 · "; opacity: 0.7; }
+
+/* Mermaid diagram positioning */
+.uf-diagram { margin: 12px 0; }
+
+/* Step strip */
+.uf-steps {
+  display: flex;
+  gap: 0;
+  margin-top: 12px;
+  padding: 4px 0;
+  overflow-x: auto;
+  position: relative;
+}
+.uf-step {
+  flex: 0 0 auto;
+  min-width: 140px;
+  max-width: 200px;
+  padding: 10px 12px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  position: relative;
+  margin-right: 22px;
+  transition: border-color 0.12s;
+}
+.uf-step:last-child { margin-right: 0; }
+.uf-step:hover { border-color: var(--text-muted); }
+.uf-step::after {
+  content: "→";
+  position: absolute;
+  right: -18px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  font-size: 14px;
+}
+.uf-step:last-child::after { display: none; }
+
+.uf-step.risk-mid  { border-top: 2px solid var(--warn); }
+.uf-step.risk-high { border-top: 2px solid var(--err); }
+.uf-step.risk-low  { border-top: 2px solid var(--ok); }
+
+.uf-step-head {
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 6px;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+.uf-step-id {
+  font-family: var(--font-mono);
+}
+.uf-step-emotion {
+  font-size: 14px;
+  line-height: 1;
+}
+.uf-step-action {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1.4;
+  margin-bottom: 6px;
+  letter-spacing: -0.005em;
+}
+.uf-step-touchpoint {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  margin-bottom: 3px;
+}
+.uf-step-duration {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+.uf-step-duration::before { content: "≈ "; opacity: 0.7; }
+.uf-step-notes {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-soft);
+  font-size: 11px;
+  color: var(--text-soft);
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+.uf-step-risk-label {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin-left: auto;
+  font-family: var(--font-mono);
+}
+.uf-step.risk-low .uf-step-risk-label   { background: var(--ok-soft);   color: var(--ok); }
+.uf-step.risk-mid .uf-step-risk-label   { background: var(--warn-soft); color: var(--warn); }
+.uf-step.risk-high .uf-step-risk-label  { background: var(--err-soft);  color: var(--err); }
+
+.uf-empty {
+  padding: 32px 0;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+</style>
+
+<section data-tab-id="{{TAB_ID}}" data-tab-type="user-flow" id="panel-{{TAB_ID}}">
+
+  <div class="block">
+    <h2 class="block-title">用户旅程</h2>
+    <div class="block-body">{{USER_FLOWS}}</div>
+  </div>
+
+</section>
