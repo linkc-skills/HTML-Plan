@@ -14,7 +14,7 @@
   padding: 10px 12px;
 }
 .todos-stat .label {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text-muted);
   text-transform: uppercase;
@@ -64,7 +64,7 @@
 }
 .todos-group-name {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -74,7 +74,7 @@
 .todos-group.skipped .todos-group-name { color: var(--text-muted); }
 .todos-group-count {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-muted);
 }
 
@@ -90,9 +90,9 @@
 }
 .todo-card:hover { border-color: var(--text-muted); }
 .todo-card.status-pending { border-left-color: var(--accent); }
-.todo-card.status-done    { border-left-color: var(--ok); opacity: 0.7; }
+.todo-card.status-done    { border-left-color: var(--ok);  }
 .todo-card.status-done .todo-title { text-decoration: line-through; color: var(--text-muted); }
-.todo-card.status-skipped { border-left-color: var(--text-muted); opacity: 0.55; }
+.todo-card.status-skipped { border-left-color: var(--text-muted);  }
 .todo-card.status-skipped .todo-title { text-decoration: line-through; color: var(--text-muted); }
 
 .todo-head {
@@ -102,7 +102,7 @@
 }
 .todo-id {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-muted);
 }
 .todo-title {
@@ -115,7 +115,7 @@
 }
 .todo-priority {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 12px;
   padding: 1px 6px;
   background: var(--bg-elev-2);
   border-radius: 4px;
@@ -129,14 +129,14 @@
 .todo-priority.p3 { background: var(--bg-elev-2); color: var(--text-muted); }
 .todo-category {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 12px;
   padding: 1px 6px;
   background: var(--bg-elev-2);
   border-radius: 4px;
   color: var(--text-muted);
 }
 .todo-updated {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-muted);
   margin-left: auto;
 }
@@ -165,7 +165,7 @@
   border-top: 1px solid var(--border-soft);
 }
 .todo-comments-head {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text-muted);
   text-transform: uppercase;
@@ -182,13 +182,13 @@
 }
 .comment-head {
   display: flex; align-items: center; gap: 8px;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--text-muted);
   margin-bottom: 4px;
 }
 .comment-at { font-family: var(--font-mono); }
 .comment-status {
-  font-size: 10px;
+  font-size: 12px;
   padding: 1px 6px;
   border-radius: 4px;
   font-weight: 600;
@@ -213,13 +213,13 @@
   display: flex; gap: 4px;
   margin-top: 4px;
 }
-.comment-actions button { font-size: 11px; padding: 2px 6px; }
+.comment-actions button { font-size: 12px; padding: 2px 6px; }
 .comment-actions button:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
 .comment-ai-response {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--ok);
   margin-top: 4px;
   padding: 4px 8px;
@@ -235,7 +235,8 @@
 }
 .todo-add-comment textarea {
   flex: 1;
-  min-height: 32px;
+  min-width: 0;
+  min-height: 40px;
   max-height: 120px;
   padding: 6px 10px;
   border: 1px solid var(--border);
@@ -258,6 +259,12 @@
   text-align: center;
   color: var(--text-muted);
   font-size: 13px;
+}
+@media (max-width: 640px) {
+  .todos-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .todo-add-comment { flex-direction: column; }
+  .todo-head { gap: 6px; }
+  .todo-title { flex-basis: 70%; }
 }
 </style>
 
@@ -285,14 +292,16 @@
 
 <script>
 window.__TAB_INITS__ = window.__TAB_INITS__ || [];
-window.__TAB_INITS__.push(function initTodos_{{TAB_ID}}() {
+window.__TAB_INITS__.push(function initTodos() {
   // Add comment
   document.querySelectorAll('[data-add-comment-for]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const todoId = btn.dataset.addCommentFor;
       const ta = btn.parentElement.querySelector('textarea');
       const body = ta.value.trim();
+      if (btn.disabled) return;
       if (!body) { window.toast('评论内容不能为空', 'err'); return; }
+      btn.disabled = true;
       try {
         const r = await fetch(window.__SERVER__ + '/draft', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -301,12 +310,14 @@ window.__TAB_INITS__.push(function initTodos_{{TAB_ID}}() {
         });
         if (r.ok) {
           ta.value = '';
+          ta.dataset.unsaved = 'false';
           window.toast('✓ 已存草稿 · 顶部提交后 AI 处理');
           if (window.__refreshDraftCount) window.__refreshDraftCount();
         } else {
           window.toast('✗ 保存草稿失败', 'err');
         }
       } catch (e) { window.toast('✗ sidecar 未运行', 'err'); }
+      finally { btn.disabled = false; }
     });
   });
 
@@ -334,6 +345,7 @@ window.__TAB_INITS__.push(function initTodos_{{TAB_ID}}() {
             })
           });
           if (r.ok) {
+            bodyEl.dataset.unsaved = 'false';
             window.toast('✓ 已存编辑草稿 · 顶部提交后 AI 处理');
             if (window.__refreshDraftCount) window.__refreshDraftCount();
           } else { window.toast('✗ 保存草稿失败', 'err'); }

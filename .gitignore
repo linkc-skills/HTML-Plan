@@ -16,6 +16,9 @@ Thumbs.db
 *.bak
 .state.json.bak
 .server.pid
+.server.json
+.state.lock
+.server-start.lock
 
 # Editors
 .vscode/

@@ -1,11 +1,16 @@
 """Sidecar HTTP server for html-plan.
 
-Lifecycle: started once per active task by Claude (the skill). Listens on
+Lifecycle: started once per active task by the AI assistant. Listens on
 localhost only. Writes back to state.json atomically (tmp + rename).
 
 Routes:
     GET  /plan.html                      — serve the rendered plan
-    GET  /state                          — current state.json (for debugging)
+    GET  /state                          — current state.json, conditional ETag read
+    POST /draft                          — persist an unsubmitted user action
+    PATCH /draft/<id>                    — edit a draft payload
+    DELETE /draft/<id>                   — withdraw an unsubmitted draft
+    POST /draft/commit                   — apply a round; report partial results
+    POST /draft/clear                    — clear unsubmitted drafts
     GET  /healthz                        — 200 OK
     POST /save                           — body { answers: { qid: value } }
     POST /annotate                       — body { scope, ref_id, field,
@@ -23,6 +28,8 @@ writes it back into state.json["server"].
 """
 from __future__ import annotations
 import argparse
+import copy
+import errno
 import datetime as dt
 import json
 import os
@@ -31,37 +38,17 @@ import signal
 import socket
 import sys
 import threading
+import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
+from state_store import StateStore, VersionConflict, atomic_write
 
 DEFAULT_PORT_START = 55501
 PORT_SCAN_LIMIT = 1024
 
 # ---------- state IO ----------
-
-class StateStore:
-    def __init__(self, task_dir: Path):
-        self.task_dir = task_dir
-        self.state_path = task_dir / "state.json"
-        self.lock = threading.Lock()
-
-    def load(self) -> dict[str, Any]:
-        return json.loads(self.state_path.read_text(encoding="utf-8"))
-
-    def save(self, state: dict[str, Any]) -> None:
-        state["updated_at"] = dt.datetime.now().astimezone().isoformat(timespec="seconds")
-        state["version"] = int(state.get("version", 0)) + 1
-        tmp = self.state_path.with_suffix(".json.tmp")
-        tmp.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
-        os.replace(tmp, self.state_path)
-
-    def update(self, mutate) -> dict[str, Any]:
-        with self.lock:
-            s = self.load()
-            mutate(s)
-            self.save(s)
-            return s
 
 
 def now_iso() -> str:
@@ -222,16 +209,17 @@ def apply_draft_action(state: dict[str, Any], action: dict[str, Any]) -> str | N
         aid = p["annot_id"]
         for a in state.get("annotations", []):
             if a.get("id") == aid:
-                if "body" in p:
-                    a["body"] = p["body"]
+                if a.get("body") == p.get("body"):
+                    return None
+                a["body"] = p["body"]
+                a["resolved"] = False
                 inbox = find_inbox_by_target(state, "annotation", {"annot_id": aid})
                 if inbox and not inbox.get("processed"):
-                    if "body" in p:
-                        inbox["body"] = p["body"]
-                    inbox["context"] = _build_inbox_context(
-                        state, "annotation", {"annot_id": aid})
+                    inbox["body"] = p["body"]
+                    inbox["context"] = _build_inbox_context(state, "annotation", {"annot_id": aid})
                     inbox["at"] = now_iso()
-                return None
+                    return None
+                return push_inbox(state, "annotation", {"tab_id": "plan", "annot_id": aid}, p["body"])
         raise ValueError(f"annotation not found: {aid}")
 
     if t == "annotation_delete":
@@ -274,8 +262,9 @@ def apply_draft_action(state: dict[str, Any], action: dict[str, Any]) -> str | N
             raise ValueError(f"todo not found: {tid}")
         for c in td.get("comments", []):
             if c.get("id") == cid:
-                if "body" in p:
-                    c["body"] = p["body"]
+                if c.get("body") == p.get("body"):
+                    return None
+                c["body"] = p["body"]
                 inbox = find_inbox_by_target(
                     state, "todo_comment",
                     {"todo_id": tid, "comment_id": cid})
@@ -283,6 +272,8 @@ def apply_draft_action(state: dict[str, Any], action: dict[str, Any]) -> str | N
                     if "body" in p:
                         inbox["body"] = p["body"]
                     inbox["at"] = now_iso()
+                if not inbox or inbox.get("processed"):
+                    return push_inbox(state, "todo_comment", {"tab_id": "todos", "todo_id": tid, "comment_id": cid}, p["body"])
                 return None
         raise ValueError(f"comment not found: {cid}")
 
@@ -309,7 +300,10 @@ def apply_draft_action(state: dict[str, Any], action: dict[str, Any]) -> str | N
         new_answer = p["answer"]
         for q in state.get("open_questions", []):
             if q.get("id") == qid:
+                validate_answer(q, new_answer)
                 previous = q.get("answer")
+                if previous == new_answer:
+                    return None
                 if previous not in (None, "") and not (isinstance(previous, list) and not previous):
                     old_inbox = find_inbox_by_target(
                         state, "form_answer", {"question_id": qid})
@@ -328,6 +322,44 @@ def apply_draft_action(state: dict[str, Any], action: dict[str, Any]) -> str | N
     raise ValueError(f"unknown draft action type: {t}")
 
 
+def validate_answer(question, answer):
+    kind = question.get("type", "text")
+    options = question.get("options", [])
+    if kind == "checkbox":
+        if not isinstance(answer, list) or any(not isinstance(x, str) or x not in options for x in answer):
+            raise ValueError("checkbox answer must contain only listed options")
+    elif not isinstance(answer, str):
+        raise ValueError("answer must be text")
+    elif kind in ("radio", "select") and answer not in options:
+        raise ValueError("answer must be a listed option")
+    if question.get("required") and (answer is None or answer == "" or answer == []):
+        raise ValueError("required question needs an answer")
+
+
+def validate_draft(state, type_name, payload):
+    fields = {
+        "annotation_create": ("ref_id", "field", "anchor_text", "body"),
+        "annotation_edit": ("annot_id", "body"),
+        "annotation_delete": ("annot_id",),
+        "todo_comment_create": ("todo_id", "body"),
+        "todo_comment_edit": ("todo_id", "comment_id", "body"),
+        "todo_comment_delete": ("todo_id", "comment_id"),
+        "form_answer": ("question_id",),
+    }
+    for field in fields[type_name]:
+        if not isinstance(payload.get(field), str) or not payload[field].strip():
+            raise ValueError(f"missing text field: {field}")
+    if type_name == "form_answer":
+        q = next((q for q in state.get("open_questions", []) if q.get("id") == payload["question_id"]), None)
+        if not q:
+            raise ValueError("question not found")
+        validate_answer(q, payload.get("answer"))
+    if type_name == "annotation_create":
+        for field in ("start_offset", "end_offset"):
+            if type(payload.get(field, 0)) is not int or payload.get(field, 0) < 0:
+                raise ValueError("annotation offsets must be nonnegative integers")
+
+
 # ---------- HTTP handler ----------
 
 def make_handler(store: StateStore):
@@ -336,13 +368,37 @@ def make_handler(store: StateStore):
         def log_message(self, fmt, *args):  # quiet
             sys.stderr.write(f"[sidecar] {self.address_string()} - {fmt % args}\n")
 
+        def _allowed_origin(self):
+            host = self.headers.get("Host", "")
+            allowed = {f"localhost:{self.server.server_port}", f"127.0.0.1:{self.server.server_port}"}
+            if host not in allowed:
+                return False
+            origin = self.headers.get("Origin")
+            if origin and origin != "http://" + host:
+                return False
+            if self.headers.get("Sec-Fetch-Site") not in (None, "none", "same-origin"):
+                return False
+            return True
+
+        def _check_origin(self):
+            if not self._allowed_origin():
+                self._err(403, "request must come from this local task page")
+                return False
+            return True
+
         # --- response helpers ---
         def _json(self, status: int, payload: Any) -> None:
             body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
             self.send_response(status)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
-            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            if getattr(self, "_state_etag", None):
+                self.send_header("ETag", self._state_etag)
+            if self._allowed_origin() and self.headers.get("Origin"):
+                self.send_header("Access-Control-Allow-Origin", self.headers["Origin"])
+                self.send_header("Vary", "Origin")
             self.send_header("Access-Control-Allow-Methods", "GET,POST,PATCH,DELETE,OPTIONS")
             self.send_header("Access-Control-Allow-Headers", "Content-Type")
             self.end_headers()
@@ -365,31 +421,52 @@ def make_handler(store: StateStore):
 
         def _body(self) -> dict[str, Any]:
             n = int(self.headers.get("Content-Length", "0") or "0")
+            if n < 0 or n > 2 * 1024 * 1024:
+                raise ValueError("request body exceeds 2 MiB")
+            if n and self.headers.get("Content-Type", "").split(";", 1)[0] != "application/json":
+                raise ValueError("request body must be application/json")
             if n == 0:
                 return {}
             raw = self.rfile.read(n)
             try:
-                return json.loads(raw.decode("utf-8"))
+                body = json.loads(raw.decode("utf-8"))
+                if not isinstance(body, dict):
+                    raise ValueError("request body must be an object")
+                return body
             except json.JSONDecodeError as e:
                 raise ValueError(f"invalid JSON: {e}")
 
         # --- CORS preflight ---
         def do_OPTIONS(self) -> None:
+            if not self._check_origin():
+                return
             self.send_response(204)
-            self.send_header("Access-Control-Allow-Origin", "*")
+            if self._allowed_origin() and self.headers.get("Origin"):
+                self.send_header("Access-Control-Allow-Origin", self.headers["Origin"])
+                self.send_header("Vary", "Origin")
             self.send_header("Access-Control-Allow-Methods", "GET,POST,PATCH,DELETE,OPTIONS")
             self.send_header("Access-Control-Allow-Headers", "Content-Type")
             self.end_headers()
 
         # --- GET ---
         def do_GET(self) -> None:
+            if not self._check_origin():
+                return
             path = self.path.split("?", 1)[0]
             if path == "/healthz":
-                self._json(200, {"ok": True})
+                self._json(200, {"ok": True, "pid": os.getpid(), "task_dir": str(store.task_dir.resolve())})
                 return
             if path == "/state":
                 try:
-                    self._json(200, store.load())
+                    state = store.load()
+                    etag = '"' + str(state.get("version", 0)) + '"'
+                    if self.headers.get("If-None-Match") == etag:
+                        self.send_response(304)
+                        self.send_header("ETag", etag)
+                        self.end_headers()
+                    else:
+                        self._state_etag = etag
+                        self._json(200, state)
                 except Exception as e:  # noqa: BLE001
                     self._err(500, str(e))
                 return
@@ -401,12 +478,22 @@ def make_handler(store: StateStore):
                     self._err(500, str(e))
                 return
             if path in ("/", "/plan.html"):
+                try:
+                    from render import render
+                    page = store.task_dir / "plan.html"
+                    if not page.exists() or store.state_path.stat().st_mtime_ns > page.stat().st_mtime_ns:
+                        render(store.task_dir)
+                except (OSError, ValueError) as error:
+                    self._err(500, f"cannot render task: {error}")
+                    return
                 self._file(store.task_dir / "plan.html", "text/html; charset=utf-8")
                 return
             self._err(404, "not found")
 
         # --- POST ---
         def do_POST(self) -> None:
+            if not self._check_origin():
+                return
             path = self.path.split("?", 1)[0]
             try:
                 if path == "/save":
@@ -436,6 +523,8 @@ def make_handler(store: StateStore):
                 self._err(500, str(e))
 
         def do_PATCH(self) -> None:
+            if not self._check_origin():
+                return
             path = self.path.split("?", 1)[0]
             try:
                 m = re.match(r"^/annotate/([A-Za-z0-9_-]+)$", path)
@@ -453,6 +542,8 @@ def make_handler(store: StateStore):
                 self._err(500, str(e))
 
         def do_DELETE(self) -> None:
+            if not self._check_origin():
+                return
             path = self.path.split("?", 1)[0]
             try:
                 m = re.match(r"^/annotate/([A-Za-z0-9_-]+)$", path)
@@ -482,6 +573,7 @@ def make_handler(store: StateStore):
                 for q in qs:
                     qid = q.get("id")
                     if qid in answers:
+                        validate_answer(q, answers[qid])
                         previous = q.get("answer")
                         # If user is re-answering, mark old inbox processed
                         if previous not in (None, "") and not (isinstance(previous, list) and not previous):
@@ -601,6 +693,9 @@ def make_handler(store: StateStore):
                 for a in state.get("annotations", []):
                     if a.get("id") == aid:
                         a["resolved"] = True
+                        inbox = find_inbox_by_target(state, "annotation", {"annot_id": aid})
+                        if inbox and not inbox.get("processed"):
+                            inbox.update(processed=True, ai_response="(用户已标记解决)", ai_responded_at=now_iso())
                         append_history(state, "user", f"标记批注 {aid} 已解决", "")
                         return
                 raise ValueError(f"annotation not found: {aid}")
@@ -620,6 +715,11 @@ def make_handler(store: StateStore):
                 raise ValueError("payload must be an object")
 
             def mutate(state):
+                validate_draft(state, type_name, payload)
+                # Saving the same question again replaces its uncommitted answer.
+                if type_name == "form_answer":
+                    state["draft"] = [d for d in state.get("draft", [])
+                                      if not (d.get("type") == type_name and d.get("payload", {}).get("question_id") == payload["question_id"])]
                 did = new_draft_id(state)
                 state.setdefault("draft", []).append({
                     "id": did,
@@ -641,7 +741,9 @@ def make_handler(store: StateStore):
             def mutate(state):
                 for d in state.get("draft", []):
                     if d.get("id") == did:
-                        d["payload"] = {**d.get("payload", {}), **new_payload}
+                        merged = {**d.get("payload", {}), **new_payload}
+                        validate_draft(state, d["type"], merged)
+                        d["payload"] = merged
                         d["updated_at"] = now_iso()
                         return
                 raise ValueError(f"draft not found: {did}")
@@ -669,7 +771,10 @@ def make_handler(store: StateStore):
                 applied: list[str] = []
                 for d in drafts:
                     try:
-                        in_id = apply_draft_action(state, d)
+                        candidate = copy.deepcopy(state)
+                        in_id = apply_draft_action(candidate, d)
+                        state.clear()
+                        state.update(candidate)
                         applied.append(d["id"])
                         if in_id:
                             inbox_ids.append(in_id)
@@ -695,11 +800,13 @@ def make_handler(store: StateStore):
                 }
 
             try:
-                store.update(mutate)
+                committed_state = store.update(mutate)
             except ValueError as e:
                 self._err(400, str(e))
                 return
             res = getattr(self, "_commit_result", {})
+            res["state"] = committed_state
+            res["remaining_drafts"] = len(committed_state.get("draft", []))
             status = 200 if res.get("ok") else 207  # 207 multi-status for partial
             self._json(status, res)
 
@@ -732,60 +839,104 @@ def find_free_port(start: int = DEFAULT_PORT_START) -> int:
 
 # ---------- main ----------
 
+def running_task(task_dir, state):
+    """Only trust a PID when the local sidecar confirms this exact directory."""
+    info = state.get("server") or {}
+    if not isinstance(info, dict):
+        info = {}
+    try:
+        metadata = task_dir / ".server.json"
+        if metadata.exists():
+            runtime = json.loads(metadata.read_text(encoding="utf-8"))
+            if isinstance(runtime, dict) and runtime.get("task_dir") == str(task_dir.resolve()):
+                info = runtime
+        pid = int((task_dir / ".server.pid").read_text())
+        if info.get("pid") != pid or pid <= 0:
+            return None
+        url = f"http://127.0.0.1:{int(info['port'])}/healthz"
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        with opener.open(url, timeout=1) as response:
+            health = json.load(response)
+        if health.get("pid") == pid and health.get("task_dir") == str(task_dir.resolve()):
+            return info
+    except (OSError, ValueError, KeyError):
+        pass
+    return None
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--task-dir", required=True, type=Path)
     ap.add_argument("--port", type=int, default=0)
+    ap.add_argument("--stop", action="store_true", help="stop only a verified sidecar for this task")
     args = ap.parse_args()
-
     if not args.task_dir.is_dir():
-        print(f"error: {args.task_dir} is not a directory", file=sys.stderr)
-        sys.exit(1)
-
+        ap.error("task directory does not exist")
     store = StateStore(args.task_dir)
-    try:
-        state = store.load()
-    except FileNotFoundError:
-        print(f"error: state.json not found in {args.task_dir}", file=sys.stderr)
-        sys.exit(1)
+    startup = StateStore(args.task_dir)
+    startup.lock_path = args.task_dir / ".server-start.lock"
+    with startup.locked():
+        try:
+            state = store.load()
+        except (OSError, ValueError) as error:
+            if not args.stop:
+                ap.error(str(error))
+            state = {}
+        active = running_task(args.task_dir, state)
+        if args.stop:
+            if active:
+                os.kill(active["pid"], signal.SIGTERM)
+                print("Stopped this task's sidecar.")
+            else:
+                print("No verified sidecar is running; no process was killed.")
+            return
+        if active:
+            print(f"[sidecar] already running: {active['url']}", flush=True)
+            return
+        if not 0 <= args.port <= 65535:
+            ap.error("port must be between 0 and 65535")
+        # Bind before publishing the URL/PID. Retry actual binds instead of a probe race.
+        ports = [args.port] if args.port else range(DEFAULT_PORT_START, DEFAULT_PORT_START + PORT_SCAN_LIMIT)
+        httpd = None
+        for port in ports:
+            try:
+                httpd = ThreadingHTTPServer(("127.0.0.1", port), make_handler(store))
+                break
+            except OSError as error:
+                if args.port or error.errno != errno.EADDRINUSE:
+                    ap.error(f"cannot bind local sidecar: {error}")
+        if httpd is None:
+            raise RuntimeError("no available sidecar port")
+        server_info = {"port": httpd.server_port,
+                       "url": f"http://localhost:{httpd.server_port}/plan.html", "pid": os.getpid()}
+        store.update(lambda state: state.update(server=server_info, task_dir=str(args.task_dir.resolve())))
+        pid_file = args.task_dir / ".server.pid"
+        pid_file.write_text(str(os.getpid()), encoding="utf-8")
+        # Keep lifecycle identity separate from recoverable business state.
+        metadata_file = args.task_dir / ".server.json"
+        atomic_write(metadata_file, json.dumps({**server_info, "task_dir": str(args.task_dir.resolve())}))
 
-    port = args.port or find_free_port()
-    server_info = {
-        "port": port,
-        "url": f"http://localhost:{port}/plan.html",
-        "pid": os.getpid(),
-    }
-    state["server"] = server_info
-    state["task_dir"] = str(args.task_dir.resolve())
-    state.setdefault("inbox", [])
-    state.setdefault("draft", [])
-    store.save(state)
-
-    pid_file = args.task_dir / ".server.pid"
-    pid_file.write_text(str(os.getpid()), encoding="utf-8")
-
-    httpd = ThreadingHTTPServer(("127.0.0.1", port), make_handler(store))
+        try:
+            from render import render
+            render(args.task_dir)
+        except (OSError, ValueError, SystemExit):
+            pid_file.unlink(missing_ok=True)
+            metadata_file.unlink(missing_ok=True)
+            httpd.server_close()
+            raise
 
     def shutdown(signum, frame):
-        sys.stderr.write(f"[sidecar] received signal {signum}, shutting down\n")
-        try:
-            pid_file.unlink(missing_ok=True)
-        except Exception:
-            pass
-        # Schedule shutdown in a different thread (serve_forever blocks this one)
         threading.Thread(target=httpd.shutdown, daemon=True).start()
 
     signal.signal(signal.SIGINT, shutdown)
     signal.signal(signal.SIGTERM, shutdown)
-
-    print(f"[sidecar] listening on http://localhost:{port}/plan.html (pid={os.getpid()})", flush=True)
     try:
+        print(f"[sidecar] listening on {server_info['url']} (pid={os.getpid()})", flush=True)
         httpd.serve_forever()
     finally:
-        try:
-            pid_file.unlink(missing_ok=True)
-        except Exception:
-            pass
+        if pid_file.exists() and pid_file.read_text().strip() == str(os.getpid()):
+            pid_file.unlink()
+            metadata_file.unlink(missing_ok=True)
         httpd.server_close()
 
 

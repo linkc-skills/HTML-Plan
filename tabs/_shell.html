@@ -24,9 +24,9 @@
   --accent:       #0070F3;
   --accent-soft:  rgba(0, 112, 243, 0.08);
   --accent-hover: #0061D5;
-  --ok:           #0FB57E;
+  --ok:           #087F5B;
   --ok-soft:      rgba(15, 181, 126, 0.10);
-  --warn:         #F5A623;
+  --warn:         #9A5B00;
   --warn-soft:    rgba(245, 166, 35, 0.10);
   --err:          #E5484D;
   --err-soft:     rgba(229, 72, 77, 0.10);
@@ -56,7 +56,7 @@
     --bg-elev-2:    #1A1A1A;
     --text:         #FAFAFA;
     --text-soft:    #A1A1A1;
-    --text-muted:   #737373;
+    --text-muted:   #999999;
     --border:       #292929;
     --border-soft:  #1F1F1F;
     --accent:       #3291FF;
@@ -130,9 +130,21 @@ html, body {
   padding: 0 32px;
   display: flex;
   gap: 4px;
+  overflow-x: auto;
   border-bottom: 1px solid var(--border);
 }
-.tabs input[type="radio"] { display: none; }
+.tab-control {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+button:focus-visible, input:focus-visible, textarea:focus-visible,
+select:focus-visible, summary:focus-visible, .tabs label:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 3px;
+}
+.tabs label:focus-visible { outline-offset: -3px; }
+button:disabled { cursor: not-allowed; }
+
 .tabs label {
   padding: 10px 14px;
   cursor: pointer;
@@ -434,6 +446,7 @@ mark.annot:hover {
   display: flex;
   align-items: center;
   gap: 14px;
+  flex-wrap: wrap;
   border-bottom: 1px solid var(--border-soft);
   font-size: 13px;
 }
@@ -488,6 +501,8 @@ mark.annot:hover {
   padding: 20px 22px;
   width: 100%;
   max-width: 480px;
+  max-height: calc(100dvh - 100px);
+  overflow-y: auto;
   position: relative;
 }
 .commit-card .close {
@@ -556,6 +571,25 @@ mark.annot:hover {
   border-color: var(--ok);
 }
 
+@media (max-width: 640px) {
+  .topbar-inner { padding: 14px 16px 0; }
+  .tabs { padding: 0 16px; }
+  .tabs label { padding: 10px 12px; }
+  .wrap { padding: 16px 16px 64px; }
+  .actionbar { padding: 10px 16px; gap: 8px 14px; }
+  .actionbar .spacer { display: none; }
+  .actionbar #commit-btn { margin-left: auto; min-height: 40px; }
+  #commit-overlay { padding: 24px 12px; }
+  .commit-card { max-height: calc(100dvh - 48px); padding: 18px; }
+  .commit-actions { flex-wrap: wrap; }
+  #annot-panel, #annot-inline-panel { max-width: calc(100vw - 32px); }
+  .topbar .meta .slug { overflow-wrap: anywhere; }
+}
+.block-title { font-size: 12px; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; }
+}
+
 /* --- Per-tab styles injected below --- */
 {{TAB_CSS}}
 </style>
@@ -600,11 +634,12 @@ mark.annot:hover {
 
 <!-- commit result overlay -->
 <div id="commit-overlay">
-  <div class="commit-card">
+  <div class="commit-card" role="dialog" aria-modal="true" aria-labelledby="commit-heading" tabindex="-1">
     <button class="close" aria-label="关闭">×</button>
-    <h3>✅ 已提交 <span id="commit-count">0</span> 条变更</h3>
+    <h3 id="commit-heading">已提交 <span id="commit-count">0</span> 条变更</h3>
+    <p id="commit-result-detail" class="commit-hint"></p>
     <ul class="commit-list" id="commit-list"></ul>
-    <p class="commit-hint">回到 Claude Code 让他响应：</p>
+    <p class="commit-hint">回到你的 AI 助手，粘贴提示语继续：</p>
     <div class="commit-actions">
       <button class="primary" id="copy-prompt-btn">
         <span>📋</span> <span id="copy-prompt-text">复制提示语</span>
@@ -639,14 +674,14 @@ mark.annot:hover {
   </div>
 </div>
 
-<div id="toast" class="toast"></div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
 
 <script>
 {{MERMAID_JS}}
 </script>
 <script>
 window.__STATE__ = {{STATE_JSON}};
-window.__SERVER__ = "{{SERVER_URL}}";
+window.__SERVER__ = /^https?:$/.test(window.location.protocol) ? window.location.origin : "{{SERVER_URL}}";
 
 document.addEventListener('DOMContentLoaded', () => {
   // mermaid init
@@ -658,7 +693,7 @@ document.addEventListener('DOMContentLoaded', () => {
       themeVariables: {
         fontFamily: getComputedStyle(document.body).getPropertyValue('--font-sans'),
       },
-      securityLevel: 'loose',
+      securityLevel: 'strict',
     });
   }
 
@@ -679,7 +714,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-window.__TAB_INITS__ = [];
+window.__TAB_INITS__ = window.__TAB_INITS__ || [];
 
 function toast(msg, kind) {
   const el = document.getElementById('toast');
@@ -769,6 +804,7 @@ function initAnnotations() {
       });
       if (r.ok) {
         panel.style.display = 'none';
+        body.dataset.unsaved = 'false';
         toast('✓ 已存草稿 · 顶部提交后 AI 处理');
         if (window.__refreshDraftCount) window.__refreshDraftCount();
       } else {
@@ -806,7 +842,8 @@ function initAnnotations() {
             })
           });
           if (r.ok) {
-            toast('✓ 已存编辑草稿 · 顶部提交后生效');
+            bodyEl.dataset.unsaved = 'false';
+          toast('✓ 已存编辑草稿 · 顶部提交后生效');
             if (window.__refreshDraftCount) window.__refreshDraftCount();
           } else { toast('✗ 保存草稿失败', 'err'); }
         } catch (e2) { toast('❌ sidecar 未运行', 'err'); }
@@ -921,12 +958,12 @@ function initInlineAnnotEdit() {
 
     // Status: check inbox for whether this annotation has been processed
     const inboxItem = (window.__STATE__?.inbox || [])
-      .find(x => x.type === 'annotation' && x.target?.annot_id === annotId);
+      .slice().reverse().find(x => x.type === 'annotation' && x.target?.annot_id === annotId);
     if (inboxItem && inboxItem.processed) {
       statusEl.textContent = '✓ AI 已处理';
       statusEl.className = 'annot-inline-status processed';
-      editBtn.disabled = true;
-      editBtn.title = 'AI 已响应，新想法请加新批注';
+      editBtn.disabled = false;
+      editBtn.title = '修改后重新提交给 AI';
     } else {
       statusEl.textContent = '⏳ 等待 AI 响应';
       statusEl.className = 'annot-inline-status pending';
@@ -1012,123 +1049,160 @@ function initInlineAnnotEdit() {
 }
 
 // ----- Actionbar: draft / inbox counts + commit + copy prompt -----
+let commitInFlight = false;
+let stateRequest = null;
+let stateETag = null;
+let renderedVersion = window.__STATE__.version;
+let overlayReturnFocus = null;
 
-function initActionbar() {
-  const commitBtn = document.getElementById('commit-btn');
-  if (commitBtn) {
-    commitBtn.addEventListener('click', commitDrafts);
-  }
-  const closeBtn = document.querySelector('#commit-overlay .close');
-  if (closeBtn) closeBtn.addEventListener('click', hideCommitOverlay);
-  const dismissBtn = document.getElementById('dismiss-btn');
-  if (dismissBtn) dismissBtn.addEventListener('click', hideCommitOverlay);
-  const copyBtn = document.getElementById('copy-prompt-btn');
-  if (copyBtn) copyBtn.addEventListener('click', copyPromptToClipboard);
-
-  // Initial fetch + poll every 5s
-  refreshStatusCounts();
-  setInterval(refreshStatusCounts, 5000);
-
-  // Expose for tab JS to trigger immediate refresh after a draft action
-  window.__refreshDraftCount = refreshStatusCounts;
+function hasUnsavedInputs() {
+  return !!document.querySelector('[data-unsaved="true"], [contenteditable="true"]');
 }
 
-async function refreshStatusCounts() {
-  try {
-    const r = await fetch(window.__SERVER__ + '/state');
-    if (!r.ok) return;
-    const s = await r.json();
-    const draftCount = (s.draft || []).length;
-    const inboxPending = (s.inbox || []).filter(x => !x.processed).length;
+function updateStatus(state) {
+  window.__STATE__ = state;
+  const drafts = (state.draft || []).length;
+  const pending = (state.inbox || []).filter(item => !item.processed).length;
+  document.getElementById('draft-count').textContent = drafts;
+  document.getElementById('inbox-count').textContent = pending;
+  document.getElementById('draft-status').classList.toggle('has-drafts', drafts > 0);
+  document.getElementById('inbox-status').classList.toggle('has-pending', pending > 0);
+  const button = document.getElementById('commit-btn');
+  button.disabled = commitInFlight || drafts === 0;
+  if (!commitInFlight) button.textContent = drafts ? `本轮提交 (${drafts})` : '本轮提交';
+  document.getElementById('server-status').textContent = '已连接';
+}
 
-    const draftEl = document.getElementById('draft-count');
-    const draftBadge = document.getElementById('draft-status');
-    if (draftEl) draftEl.textContent = draftCount;
-    if (draftBadge) draftBadge.classList.toggle('has-drafts', draftCount > 0);
-
-    const inboxEl = document.getElementById('inbox-count');
-    const inboxBadge = document.getElementById('inbox-status');
-    if (inboxEl) inboxEl.textContent = inboxPending;
-    if (inboxBadge) inboxBadge.classList.toggle('has-pending', inboxPending > 0);
-
-    const commitBtn = document.getElementById('commit-btn');
-    if (commitBtn) {
-      commitBtn.disabled = draftCount === 0;
-      commitBtn.textContent = draftCount > 0
-        ? `📤 本轮提交 (${draftCount})`
-        : '📤 本轮提交';
+function initActionbar() {
+  document.getElementById('commit-btn').addEventListener('click', commitDrafts);
+  document.querySelector('#commit-overlay .close').addEventListener('click', hideCommitOverlay);
+  document.getElementById('dismiss-btn').addEventListener('click', hideCommitOverlay);
+  document.getElementById('copy-prompt-btn').addEventListener('click', copyPromptToClipboard);
+  document.addEventListener('input', event => {
+    if (event.target.closest('[data-confirm-form]')) return;
+    if (event.target.matches('textarea, input[type=text], [contenteditable="true"]')) {
+      event.target.dataset.unsaved = 'true';
     }
+  });
+  document.addEventListener('keydown', event => {
+    const overlay = document.getElementById('commit-overlay');
+    if (!overlay.classList.contains('show')) return;
+    if (event.key === 'Escape') { event.preventDefault(); hideCommitOverlay(); }
+    if (event.key === 'Tab') {
+      const buttons = Array.from(overlay.querySelectorAll('button:not([disabled]), textarea'));
+      const first = buttons[0], last = buttons[buttons.length - 1];
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === overlay.querySelector('.commit-card'))) {
+        event.preventDefault(); last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault(); first?.focus();
+      }
+    }
+  });
+  const tabLabels = Array.from(document.querySelectorAll('.tabs label'));
+  tabLabels.forEach((label, index) => {
+    label.tabIndex = 0;
+    label.addEventListener('keydown', event => {
+      if (['Enter', ' ', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
+        event.preventDefault();
+        let next = index;
+        if (event.key === 'ArrowLeft') next = (index + tabLabels.length - 1) % tabLabels.length;
+        if (event.key === 'ArrowRight') next = (index + 1) % tabLabels.length;
+        if (event.key === 'Home') next = 0;
+        if (event.key === 'End') next = tabLabels.length - 1;
+        document.getElementById(tabLabels[next].htmlFor).checked = true;
+        tabLabels[next].focus();
+      }
+    });
+  });
+  refreshStatusCounts(true);
+  setInterval(() => refreshStatusCounts(), 5000);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) refreshStatusCounts(true);
+  });
+  window.__refreshDraftCount = () => refreshStatusCounts(true);
+}
 
-    // Stash latest state for the copy-prompt step
-    window.__STATE__ = s;
-  } catch (e) {
-    // sidecar offline — silently fail
-  }
+async function refreshStatusCounts(force = false) {
+  if (document.hidden && !force) return window.__STATE__;
+  if (stateRequest) return stateRequest;
+  stateRequest = (async () => {
+    try {
+      const headers = !force && stateETag ? { 'If-None-Match': stateETag } : {};
+      const response = await fetch(window.__SERVER__ + '/state', { headers, cache: 'no-store' });
+      if (response.status === 304) return window.__STATE__;
+      if (!response.ok) throw new Error('state unavailable');
+      const state = await response.json();
+      stateETag = response.headers.get('ETag');
+      // Keep an in-flight commit authoritative if an older poll arrives later.
+      if (state.version < window.__STATE__.version) return window.__STATE__;
+      updateStatus(state);
+      const overlayOpen = document.getElementById('commit-overlay').classList.contains('show');
+      if (state.version !== renderedVersion && !(state.draft || []).length && !hasUnsavedInputs() && !overlayOpen && !commitInFlight) {
+        window.location.reload();
+      }
+      return state;
+    } catch (error) {
+      document.getElementById('server-status').textContent = '未连接 · 检查任务 sidecar';
+      return window.__STATE__;
+    }
+  })();
+  try { return await stateRequest; } finally { stateRequest = null; }
 }
 
 async function commitDrafts() {
-  const btn = document.getElementById('commit-btn');
-  btn.disabled = true;
-  btn.classList.add('processing');
-  btn.textContent = '⏳ 提交中…';
+  if (commitInFlight) return;
+  const button = document.getElementById('commit-btn');
+  commitInFlight = true;
+  button.disabled = true;
+  button.classList.add('processing');
+  button.textContent = '提交中…';
   try {
-    const r = await fetch(window.__SERVER__ + '/draft/commit', { method: 'POST' });
-    const data = await r.json();
-    if (!r.ok || !data.ok) {
-      window.toast('✗ 提交失败：' + (data.error || r.statusText), 'err');
-      return;
-    }
+    const response = await fetch(window.__SERVER__ + '/draft/commit', { method: 'POST' });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || response.statusText);
+    if (data.state) updateStatus(data.state);
     showCommitOverlay(data);
-    refreshStatusCounts();
-  } catch (e) {
-    window.toast('✗ sidecar 未运行', 'err');
+  } catch (error) {
+    window.toast('提交未完成：' + error.message + '。草稿仍可重试。', 'err');
   } finally {
-    btn.classList.remove('processing');
+    commitInFlight = false;
+    button.classList.remove('processing');
+    updateStatus(window.__STATE__);
   }
 }
 
-function showCommitOverlay(commitData) {
+function showCommitOverlay(data) {
   const overlay = document.getElementById('commit-overlay');
-  const countEl = document.getElementById('commit-count');
-  const listEl = document.getElementById('commit-list');
-  const inboxIds = commitData.inbox_ids || [];
-
-  countEl.textContent = inboxIds.length;
-
-  // Look up each inbox item to show its type + body preview
-  const state = window.__STATE__ || {};
-  const inboxItems = (state.inbox || []).filter(x => inboxIds.includes(x.id));
-  listEl.innerHTML = inboxItems.map(item => {
-    const typeLabel = {
-      annotation: '批注',
-      todo_comment: '评论',
-      form_answer: '回答'
-    }[item.type] || item.type;
-    const targetLabel =
-      item.target.annot_id ? `批注 ${item.target.annot_id}` :
-      item.target.todo_id ? `td ${item.target.todo_id}` :
-      item.target.question_id ? `问题 ${item.target.question_id}` :
-      '';
-    const preview = (item.body || '').slice(0, 50) + (item.body.length > 50 ? '…' : '');
-    return `<li>
-      <span class="commit-id">${item.id}</span>
-      <span class="muted">${typeLabel} ${targetLabel}</span>
-      <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${preview}</span>
-    </li>`;
-  }).join('');
-
-  // Cache the inbox_ids + task_dir for copy-prompt
-  window.__LAST_COMMIT__ = {
-    inbox_ids: inboxIds,
-    slug: state.slug,
-    task_dir: state.task_dir,
-  };
-
+  const state = data.state || window.__STATE__;
+  document.getElementById('commit-count').textContent = (data.applied || []).length;
+  const detail = document.getElementById('commit-result-detail');
+  detail.textContent = data.ok
+    ? '这些变更已生效。复制提示语，让 AI 处理本轮提交。'
+    : `部分变更已生效；还有 ${data.remaining_drafts || 0} 条草稿未提交：${data.error || '请检查草稿目标'}。修正后重试。`;
+  const list = document.getElementById('commit-list');
+  list.replaceChildren();
+  const inboxIds = data.inbox_ids || [];
+  for (const item of (state.inbox || []).filter(item => inboxIds.includes(item.id))) {
+    const row = document.createElement('li');
+    const id = document.createElement('span');
+    id.className = 'commit-id';
+    id.textContent = item.id;
+    const preview = document.createElement('span');
+    preview.textContent = String(item.body || '').slice(0, 80);
+    preview.style.overflowWrap = 'anywhere';
+    row.append(id, preview);
+    list.append(row);
+  }
+  window.__LAST_COMMIT__ = { inbox_ids: inboxIds, slug: state.slug, task_dir: state.task_dir };
+  overlayReturnFocus = document.activeElement;
   overlay.classList.add('show');
+  overlay.querySelector('.commit-card').focus();
 }
 
 function hideCommitOverlay() {
   document.getElementById('commit-overlay').classList.remove('show');
+  overlayReturnFocus?.focus();
+  if (!hasUnsavedInputs()) window.location.reload();
 }
 
 async function copyPromptToClipboard() {
@@ -1146,7 +1220,7 @@ async function copyPromptToClipboard() {
   try {
     await navigator.clipboard.writeText(prompt);
     btn.classList.add('copied');
-    txt.textContent = '已复制 · 切到 Claude Code 粘贴';
+    txt.textContent = '已复制 · 切到 AI 助手粘贴';
     setTimeout(() => {
       btn.classList.remove('copied');
       txt.textContent = '复制提示语';

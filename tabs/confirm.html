@@ -112,8 +112,8 @@
       <form id="confirm-form-{{TAB_ID}}" data-confirm-form>
         <div class="q-list">{{OPEN_QUESTIONS}}</div>
         <div class="confirm-actions">
-          <button type="submit" class="primary">保存答案</button>
-          <span class="muted">点保存后 Claude 下一轮就能读到</span>
+          <button type="submit" class="primary">保存答案草稿</button>
+          <span class="muted">先保存草稿，再点顶部“本轮提交”交给 AI</span>
         </div>
       </form>
     </div>
@@ -123,62 +123,105 @@
 
 <script>
 window.__TAB_INITS__ = window.__TAB_INITS__ || [];
-window.__TAB_INITS__.push(function initConfirm_{{TAB_ID}}() {
+window.__TAB_INITS__.push(function initConfirm() {
   const form = document.getElementById('confirm-form-{{TAB_ID}}');
   if (!form) return;
 
-  // Re-answer button: convert answered q-item back to editable input
-  form.addEventListener('click', (e) => {
-    if (!e.target.matches('[data-act="re-answer"]')) return;
-    const qid = e.target.dataset.qid;
-    const item = form.querySelector(`[data-qid="${qid}"]`);
-    if (!item) return;
-    const qtype = item.dataset.qtype;
-    const answered = item.querySelector('.q-answered');
-    if (!answered) return;
+  const questions = window.__STATE__.open_questions || [];
+  const readAnswer = node => {
+    const type = node.dataset.qtype;
+    if (!node.querySelector('.q-input')) return undefined;
+    if (type === 'radio') return node.querySelector('input[type=radio]:checked')?.value;
+    if (type === 'checkbox') return Array.from(node.querySelectorAll('input[type=checkbox]:checked')).map(i => i.value);
+    return node.querySelector('select, textarea, input[type=text]')?.value;
+  };
+  const initial = new Map();
+  form.querySelectorAll('[data-qid]').forEach(node => initial.set(node.dataset.qid, readAnswer(node)));
+  form.addEventListener('input', e => {
+    const item = e.target.closest('[data-qid]');
+    if (item) item.dataset.unsaved = String(JSON.stringify(readAnswer(item)) !== JSON.stringify(initial.get(item.dataset.qid)));
+  });
+  form.addEventListener('change', e => {
+    const item = e.target.closest('[data-qid]');
+    if (item) item.dataset.unsaved = String(JSON.stringify(readAnswer(item)) !== JSON.stringify(initial.get(item.dataset.qid)));
+  });
 
-    // Render the input control matching the type
-    let inputHtml = '';
-    if (qtype === 'multiline') {
-      inputHtml = '<textarea placeholder="新答案…"></textarea>';
-    } else if (qtype === 'select' || qtype === 'radio' || qtype === 'checkbox') {
-      // For radio/checkbox/select we need the options; user can also just type — keep simple text input
-      inputHtml = '<input type="text" placeholder="新答案（用 Tab 2 重新选项更精确）">';
+  form.addEventListener('click', e => {
+    const button = e.target.closest('[data-act="re-answer"]');
+    if (!button) return;
+    e.preventDefault();
+    const qid = button.dataset.qid;
+    const item = Array.from(form.querySelectorAll('[data-qid]')).find(node => node.dataset.qid === qid);
+    const question = questions.find(q => q.id === qid);
+    const answered = item?.querySelector('.q-answered');
+    if (!question || !answered) return;
+    const wrapper = document.createElement('div');
+    wrapper.className = 'q-input';
+    const kind = question.type;
+    const makeInput = (type, value) => {
+      const input = document.createElement('input');
+      input.type = type;
+      input.value = value;
+      input.name = 'q_' + qid;
+      input.setAttribute('aria-labelledby', 'label-' + qid);
+      return input;
+    };
+    if (kind === 'radio' || kind === 'checkbox') {
+      for (const option of question.options || []) {
+        const label = document.createElement('label');
+        label.className = 'opt';
+        const input = makeInput(kind, option);
+        input.checked = kind === 'checkbox' ? (question.answer || []).includes(option) : question.answer === option;
+        label.append(input, document.createTextNode(option));
+        wrapper.append(label);
+      }
+    } else if (kind === 'select') {
+      const select = document.createElement('select');
+      select.setAttribute('aria-labelledby', 'label-' + qid);
+      for (const option of ['', ...(question.options || [])]) {
+        const element = document.createElement('option');
+        element.value = option;
+        element.textContent = option || '— 请选择 —';
+        element.selected = question.answer === option;
+        select.append(element);
+      }
+      wrapper.append(select);
+    } else if (kind === 'multiline') {
+      const textarea = document.createElement('textarea');
+      textarea.value = question.answer || '';
+      textarea.setAttribute('aria-labelledby', 'label-' + qid);
+      wrapper.append(textarea);
     } else {
-      inputHtml = '<input type="text" placeholder="新答案…">';
+      wrapper.append(makeInput('text', question.answer || ''));
     }
-    answered.outerHTML = `<div class="q-input">${inputHtml}
-      <div class="answered-actions" style="margin-top:6px;">
-        <span class="muted" style="font-size:11px;">改完后点底部"保存答案"统一提交草稿</span>
-      </div></div>`;
+    answered.replaceWith(wrapper);
+    initial.set(qid, readAnswer(item));
+    wrapper.querySelector('input, select, textarea')?.focus();
   });
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const answers = {};
+    let error = '';
     form.querySelectorAll('[data-qid]').forEach(node => {
       const qid = node.dataset.qid;
-      const type = node.dataset.qtype;
-      if (type === 'radio') {
-        const checked = node.querySelector('input[type=radio]:checked');
-        if (checked) answers[qid] = checked.value;
-      } else if (type === 'checkbox') {
-        answers[qid] = Array.from(node.querySelectorAll('input[type=checkbox]:checked')).map(i => i.value);
-      } else if (type === 'select') {
-        const sel = node.querySelector('select');
-        if (sel && sel.value) answers[qid] = sel.value;
-      } else if (type === 'multiline') {
-        const ta = node.querySelector('textarea');
-        if (ta && ta.value.trim()) answers[qid] = ta.value;
-      } else {
-        const inp = node.querySelector('input[type=text]');
-        if (inp && inp.value.trim()) answers[qid] = inp.value;
+      const answer = readAnswer(node);
+      if (answer === undefined || JSON.stringify(answer) === JSON.stringify(initial.get(qid))) return;
+      const question = questions.find(q => q.id === qid);
+      if (question?.required && (answer === '' || Array.isArray(answer) && answer.length === 0)) {
+        error = '请填写必填问题：' + question.question;
+        return;
       }
+      answers[qid] = answer;
     });
+    if (error) { window.toast(error, 'err'); return; }
     if (Object.keys(answers).length === 0) {
-      window.toast('请至少填一个答案', 'err');
+      window.toast('没有需要保存的新答案');
       return;
     }
+    const submit = form.querySelector('button[type=submit]');
+    if (submit.disabled) return;
+    submit.disabled = true;
     // Each answer becomes a separate draft action
     try {
       for (const [qid, ans] of Object.entries(answers)) {
@@ -189,6 +232,11 @@ window.__TAB_INITS__.push(function initConfirm_{{TAB_ID}}() {
             payload: { question_id: qid, answer: ans }
           })
         });
+        if (r.ok) {
+          initial.set(qid, ans);
+          const node = Array.from(form.querySelectorAll('[data-qid]')).find(node => node.dataset.qid === qid);
+          if (node) node.dataset.unsaved = 'false';
+        }
         if (!r.ok) {
           const err = await r.text();
           window.toast('✗ 保存草稿失败: ' + err, 'err');
@@ -198,7 +246,9 @@ window.__TAB_INITS__.push(function initConfirm_{{TAB_ID}}() {
       window.toast('✓ 已存 ' + Object.keys(answers).length + ' 条草稿 · 顶部提交后 AI 处理');
       if (window.__refreshDraftCount) window.__refreshDraftCount();
     } catch (e) {
-      window.toast('✗ sidecar 未运行', 'err');
+      window.toast('✗ sidecar 未运行，已输入的答案仍保留', 'err');
+    } finally {
+      submit.disabled = false;
     }
   });
 });

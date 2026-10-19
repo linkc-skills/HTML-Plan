@@ -17,7 +17,7 @@ import datetime as dt
 import html
 import json
 import os
-import shutil
+import re
 import sys
 from pathlib import Path
 from typing import Any, Callable
@@ -27,6 +27,7 @@ TABS_DIR = SKILL_DIR / "tabs"
 
 sys.path.insert(0, str(SKILL_DIR))
 from dsl import translate as translate_dsl  # noqa: E402
+from state_store import StateStore, atomic_write
 
 
 # ============================================================
@@ -34,32 +35,11 @@ from dsl import translate as translate_dsl  # noqa: E402
 # ============================================================
 
 def esc(s: Any) -> str:
-    return html.escape(str(s) if s is not None else "")
-
-
-def atomic_write(path: Path, content: str) -> None:
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(content, encoding="utf-8")
-    os.replace(tmp, path)
+    return html.escape(str(s) if s is not None else "").replace("{", "&#123;").replace("}", "&#125;")
 
 
 def load_state(task_dir: Path) -> dict[str, Any]:
-    state_path = task_dir / "state.json"
-    if not state_path.exists():
-        print(f"error: {state_path} not found", file=sys.stderr)
-        sys.exit(1)
-    try:
-        return json.loads(state_path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as e:
-        print(f"error: invalid state.json: {e}", file=sys.stderr)
-        sys.exit(1)
-
-
-def backup_state(task_dir: Path) -> None:
-    src = task_dir / "state.json"
-    dst = task_dir / ".state.json.bak"
-    if src.exists():
-        shutil.copy2(src, dst)
+    return StateStore(task_dir).load()
 
 
 def load_mermaid() -> str:
@@ -338,31 +318,31 @@ def render_question(q: dict[str, Any]) -> str:
         )
         return (
             f'<div class="q-item q-answered-wrap" data-qid="{qid}" data-qtype="{esc(qtype)}">'
-            f'<div class="q-question">{question}{req_html}</div>'
+            f'<div class="q-question" id="label-{qid}">{question}{req_html}</div>'
             f'{ctx_html}{body}</div>'
         )
 
     if qtype == "radio":
         inputs = "\n".join(
-            f'<label class="opt"><input type="radio" name="q_{qid}" value="{esc(opt)}">{esc(opt)}</label>'
+            f'<label class="opt"><input type="radio" name="q_{qid}" aria-labelledby="label-{qid}" value="{esc(opt)}">{esc(opt)}</label>'
             for opt in options)
         input_html = f'<div class="q-input">{inputs}</div>'
     elif qtype == "checkbox":
         inputs = "\n".join(
-            f'<label class="opt"><input type="checkbox" name="q_{qid}" value="{esc(opt)}">{esc(opt)}</label>'
+            f'<label class="opt"><input type="checkbox" name="q_{qid}" aria-labelledby="label-{qid}" value="{esc(opt)}">{esc(opt)}</label>'
             for opt in options)
         input_html = f'<div class="q-input">{inputs}</div>'
     elif qtype == "select":
         opts = "\n".join(f'<option value="{esc(o)}">{esc(o)}</option>' for o in options)
-        input_html = f'<div class="q-input"><select><option value="">— 请选择 —</option>{opts}</select></div>'
+        input_html = f'<div class="q-input"><select aria-labelledby="label-{qid}"><option value="">— 请选择 —</option>{opts}</select></div>'
     elif qtype == "multiline":
-        input_html = f'<div class="q-input"><textarea placeholder="…"></textarea></div>'
+        input_html = f'<div class="q-input"><textarea aria-labelledby="label-{qid}" placeholder="…"></textarea></div>'
     else:
-        input_html = f'<div class="q-input"><input type="text" placeholder="…"></div>'
+        input_html = f'<div class="q-input"><input type="text" aria-labelledby="label-{qid}" placeholder="…"></div>'
 
     return (
         f'<div class="q-item" data-qid="{qid}" data-qtype="{esc(qtype)}">'
-        f'<div class="q-question">{question}{req_html}</div>'
+        f'<div class="q-question" id="label-{qid}">{question}{req_html}</div>'
         f'{ctx_html}{input_html}</div>'
     )
 
@@ -494,7 +474,7 @@ def render_user_stories_tab(template: str, tab: dict[str, Any], state: dict[str,
     tab_id = tab["id"]
 
     if not stories:
-        body_html = '<div class="us-empty">还没有用户故事。让 Claude 起草几条试试。</div>'
+        body_html = '<div class="us-empty">还没有用户故事。请让 AI 助手依据任务起草用户故事。</div>'
         return template.replace("{{TAB_ID}}", esc(tab_id)).replace("{{USER_STORIES}}", body_html)
 
     # Group by priority (must / should / could / wont, then unknown)
@@ -601,7 +581,7 @@ def render_user_flow_tab(template: str, tab: dict[str, Any], state: dict[str, An
     tab_id = tab["id"]
 
     if not flows:
-        body_html = '<div class="uf-empty">还没有用户旅程。让 Claude 画一个试试。</div>'
+        body_html = '<div class="uf-empty">还没有用户旅程。请让 AI 助手依据任务整理用户旅程。</div>'
         return template.replace("{{TAB_ID}}", esc(tab_id)).replace("{{USER_FLOWS}}", body_html)
 
     flow_blocks: list[str] = []
@@ -677,7 +657,7 @@ def render_user_flow_card(flow: dict[str, Any]) -> str:
             action = esc(s.get("action", ""))
             touchpoint = esc(s.get("touchpoint", ""))
             duration = s.get("duration_sec")
-            duration_html = f'<div class="uf-step-duration">{duration}s</div>' if duration else ""
+            duration_html = f'<div class="uf-step-duration">{esc(duration)}s</div>' if duration else ""
             notes = s.get("notes", "")
             notes_html = f'<div class="uf-step-notes">{esc(notes)}</div>' if notes else ""
 
@@ -685,7 +665,7 @@ def render_user_flow_card(flow: dict[str, Any]) -> str:
             risk_label_html = ""
             risk_cls = ""
             if risk:
-                risk_cls = f"risk-{risk}"
+                risk_cls = f"risk-{esc(risk)}"
                 risk_label_html = f'<span class="uf-step-risk-label">{esc(RISK_LABELS.get(risk, risk))}</span>'
 
             # Emotion emoji
@@ -796,7 +776,7 @@ def render_todo_card(todo: dict[str, Any]) -> str:
         add_html = (
             f'<div class="todo-add-comment">'
             f'<textarea placeholder="加评论给 AI…"></textarea>'
-            f'<button class="primary" data-add-comment-for="{tid}">提交评论</button>'
+            f'<button class="primary" data-add-comment-for="{tid}">保存评论草稿</button>'
             f'</div>'
         )
         comments_html = (
@@ -916,7 +896,7 @@ def build_tab_nav(tabs: list[dict[str, Any]], state: dict[str, Any]) -> tuple[st
                 badge = f'<span class="tab-badge">{pending}</span>'
 
         checked = ' checked' if first else ''
-        inputs.append(f'<input type="radio" name="tab" id="tab-{tid}"{checked}>')
+        inputs.append(f'<input class="tab-control" type="radio" name="tab" id="tab-{tid}" aria-label="{label}"{checked}>')
         labels.append(f'<label for="tab-{tid}">{label}{badge}</label>')
         panel_selectors.append(f'#tab-{tid}:checked ~ * #panel-{tid}')
         active_label_selectors.append(f'#tab-{tid}:checked ~ * label[for="tab-{tid}"]')
@@ -939,9 +919,11 @@ def build_tab_nav(tabs: list[dict[str, Any]], state: dict[str, Any]) -> tuple[st
 # ============================================================
 
 def render(task_dir: Path) -> None:
-    state = load_state(task_dir)
-    backup_state(task_dir)
+    with StateStore(task_dir).snapshot() as state:
+        _render_state(task_dir, state)
 
+
+def _render_state(task_dir: Path, state: dict[str, Any]) -> None:
     state = migrate_state(state)
 
     shell_path = TABS_DIR / "_shell.html"
@@ -951,13 +933,19 @@ def render(task_dir: Path) -> None:
     shell = shell_path.read_text(encoding="utf-8")
 
     tabs = sorted_tabs(state)
+    tab_ids = [tab.get("id", "") for tab in tabs]
+    if len(set(tab_ids)) != len(tab_ids) or any(not re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]*", tid) for tid in tab_ids):
+        raise ValueError("tab IDs must be unique identifiers: letters, digits, _ or -")
     orphan_collector: list[dict[str, Any]] = []
     sections: list[str] = []
 
     for tab in tabs:
         ttype = tab.get("type", "")
+        if ttype not in TAB_RENDERERS:
+            sections.append(render_unknown_tab(tab))
+            continue
         tab_template_path = TABS_DIR / f"{ttype}.html"
-        if not tab_template_path.exists() or ttype not in TAB_RENDERERS:
+        if not tab_template_path.exists():
             sections.append(render_unknown_tab(tab))
             continue
         tab_template = tab_template_path.read_text(encoding="utf-8")
@@ -967,7 +955,10 @@ def render(task_dir: Path) -> None:
     inputs_html, labels_html, dynamic_css = build_tab_nav(tabs, state)
 
     server = state.get("server") or {}
-    server_origin = f"http://localhost:{server.get('port', '55501')}"
+    port = server.get("port", 55501)
+    if type(port) is not int or not 1 <= port <= 65535:
+        raise ValueError("server.port must be a valid integer port")
+    server_origin = f"http://localhost:{port}"
 
     replacements = {
         "{{TASK_TITLE}}": esc(state.get("task", "Untitled task")),
@@ -982,12 +973,10 @@ def render(task_dir: Path) -> None:
         "{{TAB_JS}}": "",    # per-tab JS is embedded in each fragment
         "{{SERVER_URL}}": server_origin,
         "{{STATE_JSON}}": json.dumps(state, ensure_ascii=False).replace("</", "<\\/"),
-        "{{MERMAID_JS}}": load_mermaid(),
+        "{{MERMAID_JS}}": load_mermaid() if any('class="mermaid"' in section for section in sections) else "",
     }
 
-    out = shell
-    for k, v in replacements.items():
-        out = out.replace(k, str(v))
+    out = re.sub(r"\{\{[A-Z_]+\}\}", lambda match: str(replacements.get(match.group(), match.group())), shell)
 
     atomic_write(task_dir / "plan.html", out)
     print(f"rendered: {task_dir / 'plan.html'}  ({len(tabs)} tabs: {[t['type'] for t in tabs]})")

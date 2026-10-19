@@ -1,261 +1,133 @@
 # html-plan
 
-[English](README.md) | [中文](README.zh.md)
+[English](README.md) | 中文
 
-> **HTML 是新的 Markdown。**
+把复杂任务的 plan.md 换成一个本地 HTML 协作工作面：用户在浏览器确认问题、批注和评论，AI 在下一轮读取正式提交并更新计划。它不会自行执行计划中的业务任务。
 
-一个 **Agent Skill**，把传统的 `plan.md` 替换成多 Tab 的交互式 HTML 文档。
-为人和 AI 在复杂任务上的协作提供一个真正能用的工作面，而不是没人读的过时 Markdown。
+## 第一次使用
 
-✅ 支持 **Claude Code · Codex CLI · Gemini CLI · Cursor** 以及任何兼容
-[SKILL.md 开放标准](https://www.anthropic.com/news/claude-skills)的 Agent。
+需要 Python 3.8+、现代浏览器，以及能读取 Skill 并运行本地脚本的 AI 助手。运行时只用 Python 标准库，不需要 pip/npm 安装。Node 仅用于维护者的前端回归测试。
 
-灵感来自 Theri K 在 Code with Claude 上的演讲 "HTML is the new Markdown"。
+按你的助手选择一个安装目录（只选一个）：
 
----
+| 助手 | 用户级目录 |
+|---|---|
+| Claude Code | `~/.claude/skills/html-plan` |
+| Codex | `~/.codex/skills/html-plan` |
+| Gemini CLI | `~/.gemini/skills/html-plan` |
+| 支持项目 Skill 的其他助手 | 项目内 `.agents/skills/html-plan` |
 
-## 为什么需要 html-plan
-
-Markdown plan 会腐烂。超过 1000 行后没人会读——包括最初要求写它的人。
-结果是：AI 自主跑，人脱节，好计划变成糟糕产物。
-
-HTML 不一样：
-
-- **易扫读** — Tab 切换、分块、sticky 顶部
-- **可交互** — 表单、内嵌批注、待办评论、草稿池
-- **可视化** — mermaid 图、状态 pill、进度条
-- **可持久** — 本地 sidecar HTTP server 把你的输入原子写回 `state.json`
-
-最终你得到的是一个**人和 AI 真的会协作**的工作面。
-
----
-
-## 功能特性
-
-- 📑 **开箱 7 种 Tab 类型** —— `plan` / `prd` / `user-stories` /
-  `user-flow` / `todos` / `confirm` / `log`
-- ✏️ **内嵌批注** —— 选中任意文字加批注，AI 下一轮会处理
-- 💬 **待办评论 + AI 响应** —— 标出要澄清的点，AI 在原 context 旁回应
-- 📥 **草稿池 + 批量提交** —— 收集多次编辑，一次性提交
-- 🔄 **Inbox 往返** —— 每条用户提交都变成 AI 要处理的 action item
-- 🎨 **Vercel / Geist 风格** —— Inter 字体、电光蓝 accent、自动 dark mode
-- 🌐 **本地 sidecar** —— Python 标准库，零依赖
-- 📊 **Mermaid 图示** —— 简化 DSL（`flow:` / `state:` / `sequence:`）或原生 mermaid 都行
-- 🪶 **模块化 Tab 系统** —— 只加载任务需要的 Tab，新 Tab 类型几分钟就能加
-
----
-
-## 快速开始
-
-**html-plan 是一个 [Agent Skills](https://www.anthropic.com/news/claude-skills)。**
-凡是支持 `SKILL.md` 开放标准的 Agent 都能用——Claude Code / Codex CLI /
-Gemini CLI / Cursor 等。
-
-按你用的 Agent 选安装路径：
-
-| Agent | 用户级路径 | 项目级路径 |
-|-------|-----------|-----------|
-| Claude Code | `~/.claude/skills/html-plan/` | `.claude/skills/html-plan/` |
-| Codex CLI（OpenAI） | `~/.codex/skills/html-plan/` | `.codex/skills/html-plan/` |
-| Gemini CLI | `~/.gemini/skills/html-plan/` | `.gemini/skills/html-plan/` |
-| 任意兼容 Agent | — | `.agents/skills/html-plan/`（fallback） |
-
-### 一行安装
-
-Claude Code：
+例如 Codex：
 
 ```bash
-git clone https://github.com/noonsleeping/HTML-Plan.git ~/.claude/skills/html-plan
+git clone https://github.com/linkc-skills/HTML-Plan.git ~/.codex/skills/html-plan
 ```
 
-Codex CLI：
+安装或更新后，重新加载助手的 Skill。然后说：
+
+> /html-plan 帮我筹备一次团队分享会。先确认现场还是线上，再准备议程和材料。
+
+助手会在当前任务目录的 `.html-plan/<日期-描述>/` 建立状态，启动本地 sidecar，打开它输出的 URL。
+
+**第一次有效反馈只需要四步：**
+
+1. 在“确认问题”中选择分享形式，点“保存答案草稿”。
+2. 顶部显示草稿数后，点“本轮提交”。
+3. 在结果弹窗点“复制提示语”，粘贴回 AI 助手。
+4. 助手回应提交、调整计划并验证结果；页面在没有未保存输入或待提交草稿时同步更新。
+
+保存草稿尚未通知 AI；“AI 已处理”表示它已回应这条提交，不表示整个任务完成。
+
+## 不依赖助手，先验证本地工作面
+
+macOS/Linux，在克隆目录运行：
 
 ```bash
-git clone https://github.com/noonsleeping/HTML-Plan.git ~/.codex/skills/html-plan
+TASK_DIR="$(mktemp -d)"
+cp examples/state-minimal.json "$TASK_DIR/state.json"
+python3 server.py --task-dir "$TASK_DIR"
 ```
 
-Gemini CLI：
+终端出现 `listening on http://localhost:<port>/plan.html` 后，打开该地址，按上面四步操作。这是合成的团队分享会样例，不会读取真实业务数据。终端保持运行，按 Ctrl+C 停止。
+
+Windows PowerShell，在克隆目录运行：
+
+```powershell
+$taskDir = Join-Path $env:TEMP ("html-plan-" + [guid]::NewGuid())
+New-Item -ItemType Directory -Path $taskDir | Out-Null
+Copy-Item examples/state-minimal.json (Join-Path $taskDir "state.json")
+python server.py --task-dir $taskDir
+```
+
+不要直接双击 `plan.html`；交互需要 sidecar 输出的 HTTP 地址。如果助手的环境禁止监听端口，需要明确报告该限制。
+
+## 已有功能
+
+| Tab | 内容 |
+|---|---|
+| plan | 目标、背景、关键点、步骤、可选图示 |
+| confirm | 五种题型的确认表单、改答 |
+| todos | 待办、评论、AI 响应 |
+| prd | 问题、目标、非目标、指标、约束 |
+| user-stories | 用户故事、验收标准、优先级 |
+| user-flow | 用户旅程及图示 |
+| log | 变更历史 |
+
+`plan` 和 `log` 必备，其余按需加载。保持原任务范围，不为了展示页面增加问题或 Tab。图支持简化 `flow:/state:/sequence:` 或原生 Mermaid；无图任务省去 Mermaid 内联资源，有图仍自包含。主题随系统切换明暗模式，窄屏导航可滚动。
+
+批注、评论、答案先进入持久化草稿池；正式提交进入 inbox。提交可能部分成功，弹窗区分已生效数量与剩余错误；修正失败目标后重试，不重复成功项。
+
+## AI 如何读写任务
+
+完整契约见 [SKILL.md](SKILL.md)。脚本路径来自本次加载的 Skill 目录，兼容不同助手，不硬编码 Claude 路径。
+
+状态唯一来源为任务目录的 `state.json`。**运行中不能直接整文件覆盖它。**sidecar、渲染器和 AI 更新共用 `state_store.py` 的文件锁。AI 基于刚读取的版本准备 JSON Pointer 局部更新：
+
+```json
+{
+  "expected_version": 4,
+  "changes": {
+    "/plan/steps/0/notes": "已按本轮反馈调整。",
+    "/inbox/0/processed": true,
+    "/inbox/0/ai_response": "已调整并检查。"
+  }
+}
+```
+
+将实际补丁保存为 `update.json`，再执行：
 
 ```bash
-git clone https://github.com/noonsleeping/HTML-Plan.git ~/.gemini/skills/html-plan
+python3 state_store.py --task-dir "$TASK_DIR" --patch "$TASK_DIR/update.json"
+python3 render.py --task-dir "$TASK_DIR"
 ```
 
-安装/更新后**重启 Agent** 让它重新加载 skill metadata。
+版本冲突时退出码为 2，状态不变；重新读取、重新核对和构建补丁，不能仅改版本号重试。正式变更还需保留并追加历史。待办评论响应从 inbox 自动同步。
 
-### 使用
+## 恢复与排错
 
-自然语言说就行：
+- **启动后没有地址：**查看终端/任务日志中的实际错误，确认 Python 与状态文件。不要用固定 sleep 猜测就绪。
+- **再次启动同一任务：**脚本验证路径和 PID 后复用活跃 sidecar；端口从 55501 起选择。
+- **停止任务：**运行 `python3 server.py --task-dir "$TASK_DIR" --stop`，只停止经健康检查确认为该任务的进程。
+- **保存失败：**保留输入，确认 sidecar 仍运行并使用它的地址。跨来源页面和错误 Host 会被应用拒绝，无需调整系统网络设置。
+- **状态损坏：**有有效备份时保留损坏原件并恢复备份，需核对最后一轮；备份也损坏则停止，不覆盖重建。
+- **版本冲突：**说明有新的状态更新，读取最新版本后重做局部补丁。
+- **任务阻塞：**明确说明原因和下一步。`blocked` 不算完成。
 
-> 给「重做新用户引导」这件事开一个 html-plan
+任务数据是本地明文，不保存密码、令牌或秘密。HTTP 服务只绑定 127.0.0.1；浏览器操作应来自当前任务页面。任务结束后停止 sidecar，保留目录供恢复。
 
-你的 Agent 会自动建目录 `$CWD/.html-plan/<slug>/`、渲染 `plan.html`、用浏览器打开。
+## 文件与维护验证
 
-### AI Agent 完整工作流
+`server.py` 管理本地服务；`state_store.py` 管理共享保存、恢复和 AI 补丁；`render.py` 与 `tabs/*.html` 渲染七种既有 Tab；`dsl.py` 翻译图示；`lib/mermaid.min.js` 是仓库自带资源。示例位于 `examples/`。
 
 ```bash
-# 1. 检测安装位置
-SKILL_DIR=""
-for p in ~/.claude/skills/html-plan ~/.codex/skills/html-plan \
-         ~/.gemini/skills/html-plan ./.agents/skills/html-plan; do
-  [ -f "$p/SKILL.md" ] && SKILL_DIR="$p" && break
-done
-
-# 2. 被触发时（"/html-plan ..." 或 "开个 html plan"）：
-#    a) 建目录：$CWD/.html-plan/<YYYY-MM-DD-task-slug>/
-#    b) 写 state.json 骨架（参考 examples/state-sample-product.json）
-#    c) 启 sidecar：python3 "$SKILL_DIR/server.py" --task-dir <dir>
-#    d) 渲染：     python3 "$SKILL_DIR/render.py" --task-dir <dir>
-#    e) 打开：     open http://localhost:<port>/plan.html  # macOS
-#                  xdg-open ...                            # Linux
-#                  start ...                               # Windows
+python3 -m unittest discover -s tests -v
+node tests/test_ui.js
+# Optional: requires permission to bind localhost
+python3 tests/http_integration.py
 ```
 
-完整的 agent 工作流见 [`SKILL.md`](./SKILL.md)。Skill 主体是 agent-neutral——
-只有安装路径不同。
+前端事件测试使用模拟 DOM，不能代替浏览器验收。发布前检查实际浏览器中的首次提交、五种题型改答、有图/无图、窄屏、明暗主题和键盘操作；标明未测的浏览器或系统。运行不需要 Node，测试不调用模型或付费 API。
 
----
+本次更新的验证限制：Python、模拟 DOM 和 localhost HTTP 自动测试在 macOS、Python 3.13 环境运行。由于浏览器访问不可用，真实页面交互、响应式布局与 Mermaid SVG 渲染仍未验收；Windows/Linux 和 Python 3.8 运行环境未实测，也未进行模型 A/B 评估。
 
-## 工作原理
-
-```
-你的任务描述
-       │
-       ▼
-Claude 建 $CWD/.html-plan/<slug>/state.json
-       │
-       ▼
-Sidecar HTTP server 启动（localhost，端口 55501 起自动找空闲）
-       │
-       ▼
-render.py：state.json → plan.html（自包含，约 3.5 MB 含 mermaid）
-       │
-       ▼
-浏览器自动打开
-       │
-       ▼
-你：批注文字 / 回答问题 / 评论 todo
-   （每个动作都写进持久化的"草稿池"）
-       │
-       ▼
-[📤 本轮提交] → 所有草稿 flush 进 state + inbox
-       │
-       ▼
-复制生成的 prompt → 粘到 Claude → AI 处理 inbox
-       │
-       ▼
-循环直到任务完成 → Claude 关掉 sidecar
-```
-
----
-
-## Tab 类型
-
-| Tab | 用途 |
-|------|------|
-| `plan` | 目标 / 背景 / 关键点 / 步骤 + mermaid 图 |
-| `prd` | 产品需求文档（问题 / 目标 / 非目标 / 指标） |
-| `user-stories` | "As a __ I want __ so that __" 卡片，按 MoSCoW 分组 |
-| `user-flow` | 用户旅程图，自动生成 mermaid journey 图 |
-| `todos` | 待办清单 + AI 响应循环 |
-| `confirm` | 等待用户决策的表单问题 |
-| `log` | 变更历史时间线 |
-
-`plan` 和 `log` 是 pinned（一定加载），其他 Tab 按 `state.tabs[]` 按需加载。
-
----
-
-## 数据模型
-
-每个任务的唯一真相源：`$CWD/.html-plan/<slug>/state.json`。完整样例见
-[`examples/state-sample-product.json`](./examples/state-sample-product.json)。
-
-顶层字段：
-
-| 字段 | 作用 |
-|------|------|
-| `task` / `slug` / `created_at` / `updated_at` / `version` | 元数据 |
-| `tabs[]` | 本任务要渲染哪些 Tab |
-| `plan` / `prd` / `user_stories` / `user_flows` / `todos` / `open_questions` | 各 Tab 数据 |
-| `annotations[]` | 内嵌文字批注 |
-| `history[]` | 变更历史（append-only） |
-| `inbox[]` | 等待 AI 处理的用户提交 |
-| `draft[]` | 未提交的用户动作（持久化，关浏览器不丢） |
-| `server` / `task_dir` | sidecar 启动时填 |
-
----
-
-## 文件结构
-
-```
-~/.claude/skills/html-plan/
-├── SKILL.md              ← 触发词 + 工作流文档（AI 读这个）
-├── server.py             ← Python sidecar HTTP server
-├── render.py             ← state.json → plan.html
-├── dsl.py                ← flow / state / sequence → mermaid 翻译
-├── tabs/
-│   ├── _shell.html       ← 页面外壳 + 全局 JS
-│   ├── plan.html
-│   ├── prd.html
-│   ├── user-stories.html
-│   ├── user-flow.html
-│   ├── todos.html
-│   ├── confirm.html
-│   └── log.html
-├── lib/
-│   └── mermaid.min.js    ← 约 3 MB，内联进每个 plan.html
-└── examples/
-    ├── state-sample-product.json
-    └── dsl-samples.md
-```
-
----
-
-## 环境要求
-
-- Python 3.8+
-- macOS / Linux / Windows
-- 现代浏览器（Chrome / Safari / Firefox / Edge / Arc）
-- 兼容 [SKILL.md 开放标准](https://www.anthropic.com/news/claude-skills)的 Agent
-
-不需要 `pip install`。全部用 Python 标准库。
-
----
-
-## 加新 Tab 类型
-
-1. 建 `tabs/<你的类型>.html`，含 `{{TAB_ID}}` 和数据占位符
-2. 在 `render.py` 加 `render_<your_type>_tab(...)` 函数 + 注册到 `TAB_RENDERERS`
-3. 在 `state.json` 加对应字段（如 `risks: [...]`）
-4. 在 `state.tabs[]` 推一条 `{ id, type: "<your-type>", label: "..." }`
-
-参考现有 `tabs/*.html` 任一文件 + `render.py` 里对应 renderer 的写法。
-
----
-
-## Roadmap
-
-- **v5** —— 发布到 GitHub（当前）
-- **v6** —— `risks` / `decisions` / `tests` / `files` 等 Tab 类型
-- **v7** —— 内容创作者 Tab（`scripts` / `hooks-bank` / `content-calendar`）
-- **v8** —— 实时 AI 响应流（WebSocket）
-
----
-
-## 贡献
-
-欢迎 Issue 和 PR。新 Tab 类型参考现有 `tabs/*.html` 的写法和 `render.py`
-里对应 renderer 的实现。
-
----
-
-## License
-
-MIT © Linkc-Chen (陈言)
-
----
-
-## 致谢
-
-灵感来自 Theri K 在
-[Code with Claude](https://www.anthropic.com/news/code-with-claude)（Anthropic, 2025）
-上的演讲 "HTML is the new Markdown"。
+MIT。灵感来自 “HTML is the new Markdown”。

@@ -1,0 +1,30 @@
+{
+  "task": "示例：筹备一次团队分享会",
+  "slug": "sample-team-session",
+  "created_at": "2026-05-25T09:00:00+00:00",
+  "updated_at": "2026-05-25T09:00:00+00:00",
+  "version": 1,
+  "tabs": [
+    {"id": "plan", "type": "plan", "label": "全局规划", "pinned": true, "order": 1},
+    {"id": "confirm", "type": "confirm", "label": "确认问题", "order": 2},
+    {"id": "log", "type": "log", "label": "变更历史", "pinned": true, "order": 99}
+  ],
+  "plan": {
+    "goal": "确认分享会的形式，再完成议程与材料准备。",
+    "context": "这是可公开运行的合成样例。你可以修改问题和步骤，体验一次草稿提交与 AI 响应。",
+    "key_points": ["先确认形式，再准备材料", "保存草稿后还需点顶部本轮提交"],
+    "steps": [
+      {"id": "s1", "title": "确认分享会形式", "status": "in_progress", "notes": "请在确认问题中选择形式。"},
+      {"id": "s2", "title": "准备议程", "status": "todo", "notes": "依据确认结果调整议程。"},
+      {"id": "s3", "title": "核对材料", "status": "todo", "notes": "检查议程与材料一致，再报告完成。"}
+    ]
+  },
+  "open_questions": [
+    {"id": "q1", "question": "采用哪种分享形式？", "type": "radio", "options": ["现场分享", "线上分享"], "required": true, "answer": null},
+    {"id": "q2", "question": "需要哪些材料？", "type": "checkbox", "options": ["演示文稿", "阅读清单", "演示代码"], "required": false, "answer": null}
+  ],
+  "history": [{"at": "2026-05-25T09:00:00+00:00", "by": "agent", "summary": "初始化公开合成样例"}],
+  "annotations": [],
+  "inbox": [],
+  "draft": []
+}

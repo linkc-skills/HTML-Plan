@@ -27,7 +27,7 @@
   background: var(--bg);
   border: 2px solid var(--border);
 }
-.hist-item.claude::before { border-color: var(--accent); background: var(--accent-soft); }
+.hist-item.agent::before, .hist-item.claude::before { border-color: var(--accent); background: var(--accent-soft); }
 .hist-item.user::before   { border-color: var(--ok);     background: var(--ok-soft); }
 .hist-item.system::before { border-color: var(--text-muted); }
 
@@ -50,7 +50,7 @@
   letter-spacing: 0.02em;
   font-family: var(--font-mono);
 }
-.hist-by.claude { background: var(--accent-soft); color: var(--accent); }
+.hist-by.agent, .hist-by.claude { background: var(--accent-soft); color: var(--accent); }
 .hist-by.user   { background: var(--ok-soft); color: var(--ok); }
 .hist-by.system { background: var(--bg-elev-2); color: var(--text-muted); }
 .hist-summary {
